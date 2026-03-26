@@ -48,11 +48,11 @@ For directory mode, the CLI writes one HTML file per Rust source file plus an `i
 
 Basic control flow:
 
-![Rusta basic control flow demo](/Volumes/External/Code/Rusta/docs/screenshots/nassi_diagram.png)
+![Rusta basic control flow demo](docs/screenshots/rusta_basic_control_flow_demo.png)
 
 Nested depth:
 
-![Rusta nested depth demo](/Volumes/External/Code/Rusta/docs/screenshots/nested_depth.png)
+![Rusta nested depth demo](docs/screenshots/rusta_nested_depth_demo.png)
 
 ## Grammar Source
 
