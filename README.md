@@ -2,14 +2,14 @@
 
 Rusta is a small layered parser service for Rust source code built on top of ANTLR4 and Python bindings.
 
-The repo keeps the same general architecture as the earlier Swift-focused version:
+The repo keeps the same general architecture as the earlier parser iteration:
 
 * domain-first, layered monolith
 * ANTLR grammar kept behind infrastructure ports
 * CLI contract that parses one file or a whole directory and returns versioned JSON
 * generated Python parser artifacts committed locally from vendored upstream grammar inputs
 
-The import path and console script are still named `swifta` for compatibility, but the parser target is now Rust.
+The import path and console script are now both `rusta`.
 
 ## What It Parses
 
@@ -44,6 +44,16 @@ The Rust Nassi-Shneiderman renderer currently builds diagrams for common functio
 
 For directory mode, the CLI writes one HTML file per Rust source file plus an `index.html` bundle page.
 
+### Demo Screenshots
+
+Basic control flow:
+
+![Rusta basic control flow demo](/Volumes/External/Code/Rusta/docs/screenshots/nassi_diagram.png)
+
+Nested depth:
+
+![Rusta nested depth demo](/Volumes/External/Code/Rusta/docs/screenshots/nested_depth.png)
+
 ## Grammar Source
 
 The Rust grammar is vendored from [`antlr/grammars-v4`](https://github.com/antlr/grammars-v4/tree/master/rust).
@@ -75,25 +85,25 @@ uv run python scripts/generate_rust_parser.py
 3. Parse one Rust file:
 
 ```bash
-uv run swifta parse-file path/to/lib.rs
+uv run rusta parse-file path/to/lib.rs
 ```
 
 4. Parse a directory of Rust files:
 
 ```bash
-uv run swifta parse-dir path/to/project
+uv run rusta parse-dir path/to/project
 ```
 
 5. Build a Nassi-Shneiderman HTML diagram for one Rust file:
 
 ```bash
-uv run swifta nassi-file path/to/lib.rs --out output/lib.nassi.html
+uv run rusta nassi-file path/to/lib.rs --out output/lib.nassi.html
 ```
 
 6. Build diagram bundles for a Rust source directory:
 
 ```bash
-uv run swifta nassi-dir path/to/project --out output/nassi-bundle
+uv run rusta nassi-dir path/to/project --out output/nassi-bundle
 ```
 
 If you run the module directly instead of `uv run`, make sure `src` is on `PYTHONPATH`.
@@ -113,4 +123,4 @@ For `nassi-file` and `nassi-dir`, the CLI returns JSON metadata describing the g
 
 ## Current Scope
 
-This rewrite replaces the Swift parser path with Rust parsing. The active CLI now supports both structural parsing and Rust-oriented Nassi-Shneiderman diagram generation for single files and whole directories.
+The active CLI supports both structural parsing and Rust-oriented Nassi-Shneiderman diagram generation for single files and whole directories.

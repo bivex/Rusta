@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from swifta.domain.control_flow import (
+from rusta.domain.control_flow import (
     ActionFlowStep,
     ControlFlowDiagram,
     ControlFlowStep,
@@ -17,9 +17,9 @@ from swifta.domain.control_flow import (
     SwitchFlowStep,
     WhileFlowStep,
 )
-from swifta.domain.model import SourceUnit
-from swifta.domain.ports import SwiftControlFlowExtractor
-from swifta.infrastructure.antlr.runtime import load_generated_types, parse_source_text
+from rusta.domain.model import SourceUnit
+from rusta.domain.ports import RustControlFlowExtractor
+from rusta.infrastructure.antlr.runtime import load_generated_types, parse_source_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +64,7 @@ class _ExtractorContext:
         return f"{compacted[: limit - 1]}..."
 
 
-class AntlrRustControlFlowExtractor(SwiftControlFlowExtractor):
+class AntlrRustControlFlowExtractor(RustControlFlowExtractor):
     def __init__(self) -> None:
         self._generated = load_generated_types()
 
@@ -318,6 +318,3 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 self._containers.pop()
 
     return RustControlFlowVisitor
-
-
-AntlrSwiftControlFlowExtractor = AntlrRustControlFlowExtractor

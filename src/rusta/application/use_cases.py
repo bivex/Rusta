@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import uuid4
 
-from swifta.application.dto import (
+from rusta.application.dto import (
     REPORT_SCHEMA_VERSION,
     ParseDirectoryCommand,
     ParseFileCommand,
@@ -16,26 +16,26 @@ from swifta.application.dto import (
     StructuralElementDTO,
     SyntaxDiagnosticDTO,
 )
-from swifta.domain.events import (
+from rusta.domain.events import (
     ParsingJobCompleted,
     ParsingJobStarted,
     SourceUnitParsed,
     SourceUnitParsingFailed,
 )
-from swifta.domain.model import ParseOutcome, ParseStatus, ParsingJob, SourceUnit
-from swifta.domain.ports import (
+from rusta.domain.model import ParseOutcome, ParseStatus, ParsingJob, SourceUnit
+from rusta.domain.ports import (
     Clock,
     DomainEventPublisher,
     ParsingJobRepository,
     SourceRepository,
-    SwiftSyntaxParser,
+    RustSyntaxParser,
 )
 
 
 @dataclass(slots=True)
 class ParsingJobService:
     source_repository: SourceRepository
-    parser: SwiftSyntaxParser
+    parser: RustSyntaxParser
     event_publisher: DomainEventPublisher
     clock: Clock
     job_repository: ParsingJobRepository

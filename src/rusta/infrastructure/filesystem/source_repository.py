@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from swifta.domain.errors import InputValidationError, SourceAccessError
-from swifta.domain.model import SourceUnit, SourceUnitId
-from swifta.domain.ports import SourceRepository
+from rusta.domain.errors import InputValidationError, SourceAccessError
+from rusta.domain.model import SourceUnit, SourceUnitId
+from rusta.domain.ports import SourceRepository
 
 
 class FileSystemSourceRepository(SourceRepository):
@@ -33,9 +33,6 @@ class FileSystemSourceRepository(SourceRepository):
             raise InputValidationError(f"no .rs files found under: {root}")
 
         return tuple(self._load_source_unit(path) for path in source_paths)
-
-    def list_swift_sources(self, root_path: str) -> tuple[SourceUnit, ...]:
-        return self.list_rust_sources(root_path)
 
     def _load_source_unit(self, path: Path) -> SourceUnit:
         try:

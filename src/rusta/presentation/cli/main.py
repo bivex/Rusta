@@ -9,20 +9,20 @@ from dataclasses import dataclass
 from html import escape
 from pathlib import Path
 
-from swifta.application.control_flow import (
+from rusta.application.control_flow import (
     BuildNassiDiagramCommand,
     BuildNassiDirectoryCommand,
     NassiDiagramBundleDTO,
     NassiDiagramService,
 )
-from swifta.application.dto import ParseDirectoryCommand, ParseFileCommand, ParsingJobReportDTO
-from swifta.application.use_cases import ParsingJobService
-from swifta.domain.errors import SwiftaError
-from swifta.infrastructure.antlr.control_flow_extractor import AntlrRustControlFlowExtractor
-from swifta.infrastructure.antlr.parser_adapter import AntlrRustSyntaxParser
-from swifta.infrastructure.filesystem.source_repository import FileSystemSourceRepository
-from swifta.infrastructure.rendering.nassi_html_renderer import HtmlNassiDiagramRenderer
-from swifta.infrastructure.system import (
+from rusta.application.dto import ParseDirectoryCommand, ParseFileCommand, ParsingJobReportDTO
+from rusta.application.use_cases import ParsingJobService
+from rusta.domain.errors import RustaError
+from rusta.infrastructure.antlr.control_flow_extractor import AntlrRustControlFlowExtractor
+from rusta.infrastructure.antlr.parser_adapter import AntlrRustSyntaxParser
+from rusta.infrastructure.filesystem.source_repository import FileSystemSourceRepository
+from rusta.infrastructure.rendering.nassi_html_renderer import HtmlNassiDiagramRenderer
+from rusta.infrastructure.system import (
     InMemoryParsingJobRepository,
     StructuredLoggingEventPublisher,
     SystemClock,
@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         else:
             parser.error(f"unsupported command: {args.command}")
-    except SwiftaError as error:
+    except RustaError as error:
         print(json.dumps({"error": str(error)}, indent=2), file=sys.stderr)
         return 2
 

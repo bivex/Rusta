@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from time import perf_counter
 
-from swifta.domain.model import (
+from rusta.domain.model import (
     GrammarVersion,
     ParseOutcome,
     ParseStatistics,
@@ -12,15 +12,15 @@ from swifta.domain.model import (
     StructuralElement,
     StructuralElementKind,
 )
-from swifta.domain.ports import SwiftSyntaxParser
-from swifta.infrastructure.antlr.runtime import (
+from rusta.domain.ports import RustSyntaxParser
+from rusta.infrastructure.antlr.runtime import (
     ANTLR_GRAMMAR_VERSION,
     load_generated_types,
     parse_source_text,
 )
 
 
-class AntlrRustSyntaxParser(SwiftSyntaxParser):
+class AntlrRustSyntaxParser(RustSyntaxParser):
     def __init__(self) -> None:
         self._generated = load_generated_types()
 
@@ -190,6 +190,3 @@ def _build_structure_visitor(visitor_base: type) -> type:
             return "impl"
 
     return RustStructureVisitor
-
-
-AntlrSwiftSyntaxParser = AntlrRustSyntaxParser

@@ -6,5 +6,5 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-src/swifta/infrastructure/antlr/generated/swift5/
-src/swifta/infrastructure/antlr/generated/rust/
+src/rusta/infrastructure/antlr/generated/swift5/
+src/rusta/infrastructure/antlr/generated/rust/

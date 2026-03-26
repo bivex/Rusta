@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from swifta.domain.ports import NassiDiagramRenderer, SourceRepository, SwiftControlFlowExtractor
+from rusta.domain.ports import NassiDiagramRenderer, SourceRepository, RustControlFlowExtractor
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +50,7 @@ class NassiDiagramBundleDTO:
 @dataclass(slots=True)
 class NassiDiagramService:
     source_repository: SourceRepository
-    extractor: SwiftControlFlowExtractor
+    extractor: RustControlFlowExtractor
     renderer: NassiDiagramRenderer
 
     def build_file_diagram(self, command: BuildNassiDiagramCommand) -> NassiDiagramDocumentDTO:

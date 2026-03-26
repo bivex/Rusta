@@ -10,9 +10,9 @@ from antlr4.atn.PredictionMode import PredictionMode
 from antlr4.error.ErrorStrategy import BailErrorStrategy
 from antlr4.error.Errors import ParseCancellationException
 
-from swifta.domain.errors import GeneratedParserNotAvailableError
-from swifta.domain.model import GrammarVersion, SyntaxDiagnostic
-from swifta.infrastructure.antlr.error_listener import CollectingErrorListener
+from rusta.domain.errors import GeneratedParserNotAvailableError
+from rusta.domain.model import GrammarVersion, SyntaxDiagnostic
+from rusta.infrastructure.antlr.error_listener import CollectingErrorListener
 
 
 ANTLR_GRAMMAR_VERSION = GrammarVersion(
@@ -38,13 +38,13 @@ class ParseTreeResult:
 def load_generated_types() -> GeneratedParserTypes:
     try:
         lexer_module = importlib.import_module(
-            "swifta.infrastructure.antlr.generated.rust.RustLexer"
+            "rusta.infrastructure.antlr.generated.rust.RustLexer"
         )
         parser_module = importlib.import_module(
-            "swifta.infrastructure.antlr.generated.rust.RustParser"
+            "rusta.infrastructure.antlr.generated.rust.RustParser"
         )
         visitor_module = importlib.import_module(
-            "swifta.infrastructure.antlr.generated.rust.RustParserVisitor"
+            "rusta.infrastructure.antlr.generated.rust.RustParserVisitor"
         )
     except ModuleNotFoundError as error:
         raise GeneratedParserNotAvailableError(

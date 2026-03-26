@@ -1,11 +1,11 @@
 """Domain and application-facing errors."""
 
 
-class SwiftaError(Exception):
+class RustaError(Exception):
     """Base type for all system errors."""
 
 
-class BusinessRuleViolation(SwiftaError):
+class BusinessRuleViolation(RustaError):
     """Raised when a domain invariant is violated."""
 
 
@@ -29,14 +29,14 @@ class ParsingJobNotCompleteError(BusinessRuleViolation):
     """Raised when completing a job before every outcome is known."""
 
 
-class InputValidationError(SwiftaError):
+class InputValidationError(RustaError):
     """Raised for invalid user input at the system boundary."""
 
 
-class SourceAccessError(SwiftaError):
+class SourceAccessError(RustaError):
     """Raised when the system cannot access or decode a source file."""
 
 
-class GeneratedParserNotAvailableError(SwiftaError):
+class GeneratedParserNotAvailableError(RustaError):
     """Raised when generated ANTLR artifacts are missing."""
 

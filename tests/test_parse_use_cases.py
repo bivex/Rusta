@@ -3,11 +3,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from swifta.application.dto import ParseDirectoryCommand, ParseFileCommand
-from swifta.application.use_cases import ParsingJobService
-from swifta.infrastructure.antlr.parser_adapter import AntlrRustSyntaxParser
-from swifta.infrastructure.filesystem.source_repository import FileSystemSourceRepository
-from swifta.infrastructure.system import (
+from rusta.application.dto import ParseDirectoryCommand, ParseFileCommand
+from rusta.application.use_cases import ParsingJobService
+from rusta.infrastructure.antlr.parser_adapter import AntlrRustSyntaxParser
+from rusta.infrastructure.filesystem.source_repository import FileSystemSourceRepository
+from rusta.infrastructure.system import (
     InMemoryParsingJobRepository,
     StructuredLoggingEventPublisher,
     SystemClock,
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def _ensure_generated_parser() -> None:
     generated_parser = (
-        ROOT / "src" / "swifta" / "infrastructure" / "antlr" / "generated" / "rust" / "RustParser.py"
+        ROOT / "src" / "rusta" / "infrastructure" / "antlr" / "generated" / "rust" / "RustParser.py"
     )
     if generated_parser.exists():
         return
@@ -120,7 +120,7 @@ def test_cli_outputs_json() -> None:
         [
             sys.executable,
             "-m",
-            "swifta.presentation.cli.main",
+            "rusta.presentation.cli.main",
             "parse-file",
             str(ROOT / "tests" / "fixtures" / "valid.rs"),
         ],

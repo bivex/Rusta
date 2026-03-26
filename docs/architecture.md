@@ -60,8 +60,8 @@ Contains:
 Important current adapters include:
 
 * `FileSystemSourceRepository`
-* `AntlrSwiftSyntaxParser`
-* `AntlrSwiftControlFlowExtractor`
+* `AntlrRustSyntaxParser`
+* `AntlrRustControlFlowExtractor`
 * `HtmlNassiDiagramRenderer`
 * `StructuredLoggingEventPublisher`
 * `SystemClock`
@@ -94,7 +94,7 @@ Current CLI commands:
 1. The CLI resolves a file or directory path.
 2. `FileSystemSourceRepository` loads one `SourceUnit` or lists many.
 3. `ParsingJobService` creates a `ParsingJob`.
-4. `AntlrSwiftSyntaxParser` parses each source unit into a `ParseOutcome`.
+4. `AntlrRustSyntaxParser` parses each source unit into a `ParseOutcome`.
 5. The service records outcomes, emits lifecycle events, and completes the job.
 6. Application DTO mapping produces `ParsingJobReportDTO`.
 7. Presentation serializes the DTO to JSON and chooses an exit code.
@@ -103,7 +103,7 @@ Current CLI commands:
 
 1. The CLI resolves a file or directory path and any output path override.
 2. `FileSystemSourceRepository` loads source units.
-3. `NassiDiagramService` asks `AntlrSwiftControlFlowExtractor` for a `ControlFlowDiagram`.
+3. `NassiDiagramService` asks `AntlrRustControlFlowExtractor` for a `ControlFlowDiagram`.
 4. `HtmlNassiDiagramRenderer` converts that diagram into HTML.
 5. Presentation writes one HTML file per source or a full bundle plus index page.
 6. Presentation prints JSON metadata about generated artifacts.
@@ -113,8 +113,8 @@ Current CLI commands:
 The main ports and their current responsibilities are:
 
 * `SourceRepository`: file loading and directory enumeration
-* `SwiftSyntaxParser`: parse-report production
-* `SwiftControlFlowExtractor`: control-flow model extraction
+* `RustSyntaxParser`: parse-report production
+* `RustControlFlowExtractor`: control-flow model extraction
 * `NassiDiagramRenderer`: HTML rendering
 * `DomainEventPublisher`: lifecycle event publication
 * `Clock`: time source abstraction

@@ -4,14 +4,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from swifta.application.control_flow import (
+from rusta.application.control_flow import (
     BuildNassiDiagramCommand,
     BuildNassiDirectoryCommand,
     NassiDiagramService,
 )
-from swifta.infrastructure.antlr.control_flow_extractor import AntlrRustControlFlowExtractor
-from swifta.infrastructure.filesystem.source_repository import FileSystemSourceRepository
-from swifta.infrastructure.rendering.nassi_html_renderer import HtmlNassiDiagramRenderer
+from rusta.infrastructure.antlr.control_flow_extractor import AntlrRustControlFlowExtractor
+from rusta.infrastructure.filesystem.source_repository import FileSystemSourceRepository
+from rusta.infrastructure.rendering.nassi_html_renderer import HtmlNassiDiagramRenderer
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def _ensure_generated_parser() -> None:
     generated_parser = (
-        ROOT / "src" / "swifta" / "infrastructure" / "antlr" / "generated" / "rust" / "RustParser.py"
+        ROOT / "src" / "rusta" / "infrastructure" / "antlr" / "generated" / "rust" / "RustParser.py"
     )
     if generated_parser.exists():
         return
@@ -76,7 +76,7 @@ def test_nassi_cli_writes_html_file(tmp_path: Path) -> None:
         [
             sys.executable,
             "-m",
-            "swifta.presentation.cli.main",
+            "rusta.presentation.cli.main",
             "nassi-file",
             str(ROOT / "tests" / "fixtures" / "control_flow.rs"),
             "--out",
@@ -108,7 +108,7 @@ def test_nassi_cli_writes_directory_bundle(tmp_path: Path) -> None:
         [
             sys.executable,
             "-m",
-            "swifta.presentation.cli.main",
+            "rusta.presentation.cli.main",
             "nassi-dir",
             str(ROOT / "tests" / "fixtures"),
             "--out",

@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from swifta.domain.errors import EmptyParsingJobError
-from swifta.domain.model import (
+from rusta.domain.errors import EmptyParsingJobError
+from rusta.domain.model import (
     GrammarVersion,
     ParseOutcome,
     ParseStatistics,

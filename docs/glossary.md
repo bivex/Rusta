@@ -76,6 +76,6 @@
 * Use `StructuralElement`, not `NodeInfo`.
 * Use `ControlFlowDiagram`, not `FlowTree`.
 * Use `NassiDiagramService`, not `HtmlGenerator`.
-* Use `SwiftSyntaxParser`, not `ParserHelper`.
-* Use `SwiftControlFlowExtractor`, not `BranchScanner`.
+* Use `RustSyntaxParser`, not `ParserHelper`.
+* Use `RustControlFlowExtractor`, not `BranchScanner`.
 * Use `SourceRepository`, not `FileUtils`.
