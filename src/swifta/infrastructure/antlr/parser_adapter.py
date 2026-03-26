@@ -1,4 +1,4 @@
-"""ANTLR-backed Swift parser adapter."""
+"""ANTLR-backed Rust parser adapter."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from swifta.infrastructure.antlr.runtime import (
 )
 
 
-class AntlrSwiftSyntaxParser(SwiftSyntaxParser):
+class AntlrRustSyntaxParser(SwiftSyntaxParser):
     def __init__(self) -> None:
         self._generated = load_generated_types()
 
@@ -61,105 +61,102 @@ class AntlrSwiftSyntaxParser(SwiftSyntaxParser):
 
 
 def _build_structure_visitor(visitor_base: type) -> type:
-    class SwiftStructureVisitor(visitor_base):
+    class RustStructureVisitor(visitor_base):
         def __init__(self) -> None:
             super().__init__()
             self.elements: list[StructuralElement] = []
             self._containers: list[str] = []
 
-        def visitImport_declaration(self, ctx):
-            import_path = ctx.import_path().getText()
+        def visitUseDeclaration(self, ctx):
+            import_path = ctx.useTree().getText()
             self._append(
-                StructuralElementKind.IMPORT,
+                StructuralElementKind.USE,
                 import_path,
                 ctx,
-                signature=f"import {import_path}",
+                signature=f"use {import_path};",
             )
             return None
 
-        def visitTypealias_declaration(self, ctx):
-            name = ctx.typealias_name().getText()
+        def visitModule(self, ctx):
+            name = ctx.identifier().getText()
+            self._append(
+                StructuralElementKind.MODULE,
+                name,
+                ctx,
+                signature=ctx.getText(),
+            )
+            return self._with_container(name, lambda: self.visitChildren(ctx))
+
+        def visitTypeAlias(self, ctx):
+            name = ctx.identifier().getText()
             self._append(
                 StructuralElementKind.TYPE_ALIAS,
                 name,
                 ctx,
-                signature=f"typealias {name}",
+                signature=ctx.getText(),
             )
             return None
 
-        def visitConstant_declaration(self, ctx):
-            for name in self._extract_pattern_names(ctx.pattern_initializer_list()):
-                self._append(
-                    StructuralElementKind.CONSTANT,
-                    name,
-                    ctx,
-                    signature=f"let {name}",
-                )
+        def visitConstantItem(self, ctx):
+            name = ctx.identifier().getText() if ctx.identifier() is not None else "_"
+            self._append(
+                StructuralElementKind.CONSTANT,
+                name,
+                ctx,
+                signature=ctx.getText(),
+            )
             return None
 
-        def visitVariable_declaration(self, ctx):
-            if ctx.variable_name() is not None:
-                variable_name = ctx.variable_name().getText()
-                self._append(
-                    StructuralElementKind.VARIABLE,
-                    variable_name,
-                    ctx,
-                    signature=f"var {variable_name}",
-                )
-                return None
-
-            for name in self._extract_pattern_names(ctx.pattern_initializer_list()):
-                self._append(
-                    StructuralElementKind.VARIABLE,
-                    name,
-                    ctx,
-                    signature=f"var {name}",
-                )
+        def visitStaticItem(self, ctx):
+            name = ctx.identifier().getText()
+            self._append(
+                StructuralElementKind.STATIC,
+                name,
+                ctx,
+                signature=ctx.getText(),
+            )
             return None
 
-        def visitFunction_declaration(self, ctx):
-            name = ctx.function_name().getText()
-            signature = ctx.function_signature().getText()
+        def visitFunction_(self, ctx):
+            name = ctx.identifier().getText()
             self._append(
                 StructuralElementKind.FUNCTION,
                 name,
                 ctx,
-                signature=f"func {name}{signature}",
+                signature=ctx.getText(),
             )
             return None
 
-        def visitEnum_declaration(self, ctx):
-            name = self._extract_enum_name(ctx)
-            self._append(StructuralElementKind.ENUM, name, ctx, signature=f"enum {name}")
+        def visitStruct_(self, ctx):
+            if ctx.structStruct() is not None:
+                name = ctx.structStruct().identifier().getText()
+            else:
+                name = ctx.tupleStruct().identifier().getText()
+            self._append(StructuralElementKind.STRUCT, name, ctx, signature=ctx.getText())
             return self._with_container(name, lambda: self.visitChildren(ctx))
 
-        def visitStruct_declaration(self, ctx):
-            name = ctx.struct_name().getText()
-            self._append(StructuralElementKind.STRUCT, name, ctx, signature=f"struct {name}")
+        def visitEnumeration(self, ctx):
+            name = ctx.identifier().getText()
+            self._append(StructuralElementKind.ENUM, name, ctx, signature=ctx.getText())
             return self._with_container(name, lambda: self.visitChildren(ctx))
 
-        def visitClass_declaration(self, ctx):
-            name = ctx.class_name().getText()
-            self._append(StructuralElementKind.CLASS, name, ctx, signature=f"class {name}")
+        def visitUnion_(self, ctx):
+            name = ctx.identifier().getText()
+            self._append(StructuralElementKind.UNION, name, ctx, signature=ctx.getText())
             return self._with_container(name, lambda: self.visitChildren(ctx))
 
-        def visitProtocol_declaration(self, ctx):
-            name = ctx.protocol_name().getText()
+        def visitTrait_(self, ctx):
+            name = ctx.identifier().getText()
+            self._append(StructuralElementKind.TRAIT, name, ctx, signature=ctx.getText())
+            return self._with_container(name, lambda: self.visitChildren(ctx))
+
+        def visitImplementation(self, ctx):
+            name = self._extract_impl_name(ctx)
             self._append(
-                StructuralElementKind.PROTOCOL,
+                StructuralElementKind.IMPLEMENTATION,
                 name,
                 ctx,
-                signature=f"protocol {name}",
-            )
-            return self._with_container(name, lambda: self.visitChildren(ctx))
-
-        def visitExtension_declaration(self, ctx):
-            name = ctx.type_identifier().getText()
-            self._append(
-                StructuralElementKind.EXTENSION,
-                name,
-                ctx,
-                signature=f"extension {name}",
+                signature=ctx.getText(),
             )
             return self._with_container(name, lambda: self.visitChildren(ctx))
 
@@ -183,46 +180,16 @@ def _build_structure_visitor(visitor_base: type) -> type:
             finally:
                 self._containers.pop()
 
-        def _extract_enum_name(self, enum_ctx) -> str:
-            if enum_ctx.union_style_enum() is not None:
-                return enum_ctx.union_style_enum().enum_name().getText()
-            if enum_ctx.raw_value_style_enum() is not None:
-                return enum_ctx.raw_value_style_enum().enum_name().getText()
-            return "enum"
+        def _extract_impl_name(self, ctx) -> str:
+            if ctx.inherentImpl() is not None:
+                return ctx.inherentImpl().type_().getText()
+            if ctx.traitImpl() is not None:
+                trait_path = ctx.traitImpl().typePath().getText()
+                target_type = ctx.traitImpl().type_().getText()
+                return f"{trait_path} for {target_type}"
+            return "impl"
 
-        def _extract_pattern_names(self, pattern_initializer_list_ctx) -> tuple[str, ...]:
-            names: list[str] = []
-            for pattern_initializer_ctx in pattern_initializer_list_ctx.pattern_initializer():
-                names.extend(self._extract_names_from_pattern(pattern_initializer_ctx.pattern()))
-            return tuple(names)
+    return RustStructureVisitor
 
-        def _extract_names_from_pattern(self, pattern_ctx) -> list[str]:
-            if pattern_ctx is None:
-                return []
 
-            names: list[str] = []
-            identifier_pattern_ctx = getattr(pattern_ctx, "identifier_pattern", None)
-            if callable(identifier_pattern_ctx):
-                identifier = pattern_ctx.identifier_pattern()
-                if identifier is not None:
-                    names.append(identifier.getText())
-
-            tuple_pattern_ctx = getattr(pattern_ctx, "tuple_pattern", None)
-            if callable(tuple_pattern_ctx):
-                tuple_pattern = pattern_ctx.tuple_pattern()
-                if tuple_pattern is not None and tuple_pattern.tuple_pattern_element_list() is not None:
-                    for element in tuple_pattern.tuple_pattern_element_list().tuple_pattern_element():
-                        names.extend(self._extract_names_from_pattern(element.pattern()))
-
-            nested_pattern_accessor = getattr(pattern_ctx, "pattern", None)
-            if callable(nested_pattern_accessor):
-                nested_pattern = pattern_ctx.pattern()
-                if nested_pattern is not None and nested_pattern is not pattern_ctx:
-                    names.extend(self._extract_names_from_pattern(nested_pattern))
-
-            if not names:
-                names.append(pattern_ctx.getText())
-
-            return names
-
-    return SwiftStructureVisitor
+AntlrSwiftSyntaxParser = AntlrRustSyntaxParser

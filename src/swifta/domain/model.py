@@ -27,16 +27,17 @@ class ParseStatus(StrEnum):
 
 
 class StructuralElementKind(StrEnum):
-    IMPORT = "import"
+    USE = "use"
+    MODULE = "module"
     TYPE_ALIAS = "type_alias"
     CONSTANT = "constant"
-    VARIABLE = "variable"
+    STATIC = "static"
     FUNCTION = "function"
     ENUM = "enum"
     STRUCT = "struct"
-    CLASS = "class"
-    PROTOCOL = "protocol"
-    EXTENSION = "extension"
+    UNION = "union"
+    TRAIT = "trait"
+    IMPLEMENTATION = "impl"
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,4 +229,3 @@ class ParsingJob:
     @property
     def ordered_outcomes(self) -> tuple[ParseOutcome, ...]:
         return tuple(self.outcomes[source_unit.identifier] for source_unit in self.source_units)
-

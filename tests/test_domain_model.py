@@ -20,8 +20,8 @@ def test_parsing_job_requires_at_least_one_source_unit() -> None:
 
 def test_parsing_job_tracks_outcomes() -> None:
     source_unit = SourceUnit(
-        identifier=SourceUnitId("/tmp/example.swift"),
-        location="/tmp/example.swift",
+        identifier=SourceUnitId("/tmp/example.rs"),
+        location="/tmp/example.rs",
         content="struct Example {}",
     )
     job = ParsingJob(
@@ -48,4 +48,3 @@ def test_parsing_job_tracks_outcomes() -> None:
 
     assert job.succeeded_count == 1
     assert job.technical_failure_count == 0
-

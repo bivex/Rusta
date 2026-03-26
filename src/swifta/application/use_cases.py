@@ -45,7 +45,7 @@ class ParsingJobService:
         return self._run_job((source_unit,))
 
     def parse_directory(self, command: ParseDirectoryCommand) -> ParsingJobReportDTO:
-        source_units = tuple(self.source_repository.list_swift_sources(command.root_path))
+        source_units = tuple(self.source_repository.list_rust_sources(command.root_path))
         return self._run_job(source_units)
 
     def _run_job(self, source_units: tuple[SourceUnit, ...]) -> ParsingJobReportDTO:
@@ -156,4 +156,3 @@ def _map_source_outcome(outcome: ParseOutcome) -> SourceParseReportDTO:
         ),
         failure_message=outcome.failure_message,
     )
-

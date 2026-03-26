@@ -17,6 +17,10 @@ class SourceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_rust_sources(self, root_path: str) -> Sequence[SourceUnit]:
+        raise NotImplementedError
+
+    @abstractmethod
     def list_swift_sources(self, root_path: str) -> Sequence[SourceUnit]:
         raise NotImplementedError
 
