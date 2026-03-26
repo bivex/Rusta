@@ -29,6 +29,21 @@ Today the parser recognizes Rust source files (`.rs`) and extracts a lightweight
 
 Syntax diagnostics from the ANTLR lexer/parser are included in the JSON report.
 
+## Nassi Diagrams
+
+The Rust Nassi-Shneiderman renderer currently builds diagrams for common function-level control flow:
+
+* `let` statements
+* expression actions
+* `if` and `if let`
+* `while` and `while let`
+* `for`
+* `loop`
+* `match`
+* `return`, `break`, and `continue` as action nodes
+
+For directory mode, the CLI writes one HTML file per Rust source file plus an `index.html` bundle page.
+
 ## Grammar Source
 
 The Rust grammar is vendored from [`antlr/grammars-v4`](https://github.com/antlr/grammars-v4/tree/master/rust).
@@ -69,6 +84,18 @@ uv run swifta parse-file path/to/lib.rs
 uv run swifta parse-dir path/to/project
 ```
 
+5. Build a Nassi-Shneiderman HTML diagram for one Rust file:
+
+```bash
+uv run swifta nassi-file path/to/lib.rs --out output/lib.nassi.html
+```
+
+6. Build diagram bundles for a Rust source directory:
+
+```bash
+uv run swifta nassi-dir path/to/project --out output/nassi-bundle
+```
+
 If you run the module directly instead of `uv run`, make sure `src` is on `PYTHONPATH`.
 
 ## Output Contract
@@ -82,6 +109,8 @@ The CLI returns JSON with:
 * structural elements with `kind`, `name`, `line`, `column`, `container`, and `signature`
 * token/statistics metadata
 
+For `nassi-file` and `nassi-dir`, the CLI returns JSON metadata describing the generated HTML outputs.
+
 ## Current Scope
 
-This rewrite replaces the Swift parser path with Rust parsing. The old Swift-specific control-flow and Nassi-Shneiderman diagram features are not part of the active CLI anymore.
+This rewrite replaces the Swift parser path with Rust parsing. The active CLI now supports both structural parsing and Rust-oriented Nassi-Shneiderman diagram generation for single files and whole directories.
