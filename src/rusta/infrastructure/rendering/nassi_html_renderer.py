@@ -16,6 +16,7 @@ from rusta.domain.control_flow import (
     DeferFlowStep,
     DoCatchFlowStep,
     ForInFlowStep,
+    GenBlockFlowStep,
     GuardFlowStep,
     IfFlowStep,
     LabeledBlockFlowStep,
@@ -28,6 +29,7 @@ from rusta.domain.control_flow import (
     TryPropagateFlowStep,
     UnsafeFlowStep,
     WhileFlowStep,
+    YieldFlowStep,
 )
 from rusta.domain.ports import NassiDiagramRenderer
 
@@ -378,6 +380,14 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
       .ns-macro {{ background: var(--surface-3); border-left: 3px solid var(--amber); }}
       .ns-macro .ns-label {{ background: var(--surface-3); }}
       .ns-macro .action-text {{ color: var(--amber); }}
+      .ns-yield {{ background: var(--purple-dim); border-left: 3px solid var(--purple); }}
+      .ns-yield .ns-label {{ background: var(--purple-dim); }}
+      .ns-yield .action-text {{ color: var(--purple); }}
+      .ns-gen {{ background: #1a1d2e; }}
+      .ns-gen > .ns-header {{ background: #252840; color: var(--blue); }}
+      .ns-node.ns-gen {{ border-left: 3px solid var(--blue); }}
+      .ns-async-gen > .ns-header {{ background: #1e2e30; color: var(--teal); }}
+      .ns-node.ns-async-gen {{ border-left: 3px solid var(--teal); }}
 
       .ns-guard   > .ns-header {{ background: var(--orange-dim); color: var(--orange); }}
       .ns-switch  > .ns-header,
@@ -846,6 +856,19 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
                 "</div>"
                 "</div>"
             )
+        if isinstance(step, YieldFlowStep):
+            value_html = f' {escape(step.value)}' if step.value else ''
+            return (
+                '<div class="ns-node ns-yield">'
+                f'<div class="ns-label" aria-label="Yield">'
+                f'<code class="action-text">yield{value_html}</code>'
+                '</div><div class="ns-note">Suspend coroutine, emit value</div>'
+                "</div>"
+            )
+        if isinstance(step, GenBlockFlowStep):
+            css = "ns-async-gen" if step.is_async else "ns-gen"
+            title = "async gen { }" if step.is_async else "gen { }"
+            return self._render_single_body(title, step.body_steps, depth=depth, css_class=css)
         raise TypeError(f"unsupported step type: {type(step)!r}")
 
     def _render_case(self, case: SwitchCaseFlow) -> str:

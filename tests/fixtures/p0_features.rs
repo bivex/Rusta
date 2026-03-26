@@ -121,3 +121,12 @@ pub fn test_macros(x: i32) -> i32 {
     assert!(x > 0);
     x
 }
+
+// Coroutine: yield expression (unstable / gen blocks, Rust 1.85+)
+pub fn test_coroutine_yield() -> impl Iterator<Item = i32> {
+    gen {
+        yield 1;
+        yield 2;
+        yield 3;
+    }
+}

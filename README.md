@@ -97,7 +97,8 @@ For directory mode, the CLI writes one HTML file per Rust source file plus an `i
 | Outer attributes (`#[must_use]` etc.) | `fn-attr` chips | ✅ | Shown as green chips above title |
 | Macro invocations (`println!`, etc.) | `MacroCallFlowStep` | ✅ | Amber-highlighted node, distinct from actions |
 | Generic const params (`const N: usize`) | Amber chips in header | ✅ | Extracted from `genericParams`, shown below signature |
-| Coroutine internals (generator state) | - | ❌ | Requires compiler support |
+| `yield` expression | `YieldFlowStep` | ✅ | Purple node "Suspend coroutine, emit value" |
+| `gen {}` / `async gen {}` blocks (Rust 1.85+) | `GenBlockFlowStep` | ✅ | Block wrapper, `KW_GEN` added to grammar as soft keyword |
 
 ### Demo Screenshots
 

@@ -141,7 +141,7 @@ def test_match_guards_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 16
+    assert document.function_count == 17
     assert "test_match_guards" in document.function_names
 
     # Check that the HTML contains guard badges
@@ -156,7 +156,7 @@ def test_or_patterns_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 16
+    assert document.function_count == 17
     assert "test_or_patterns" in document.function_names
 
     # Check that OR patterns are shown in the HTML
@@ -172,7 +172,7 @@ def test_error_propagation_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 16
+    assert document.function_count == 17
     assert "test_error_propagation" in document.function_names
 
     # Check that ? operator is visualized
@@ -186,7 +186,7 @@ def test_async_await_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 16
+    assert document.function_count == 17
     assert "test_async_await" in document.function_names
 
     # Check that .await is visualized
@@ -200,7 +200,7 @@ def test_unsafe_blocks_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 16
+    assert document.function_count == 17
     assert "test_unsafe" in document.function_names
 
     # Check that unsafe blocks are visualized
@@ -214,7 +214,7 @@ def test_closures_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 16
+    assert document.function_count == 17
     assert "test_closure" in document.function_names
 
     # Check that closures are visualized
@@ -228,7 +228,7 @@ def test_break_with_value_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 16
+    assert document.function_count == 17
     assert "test_break_with_value" in document.function_names
 
     # Check that break with value is visualized
@@ -321,6 +321,18 @@ def test_outer_attributes_rendered() -> None:
     assert "test_with_attribute" in document.function_names
     assert "fn-attr" in document.html
     assert "must_use" in document.html
+
+
+def test_coroutine_yield_and_gen_block() -> None:
+    """Test that yield expressions and gen {} blocks are detected."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_coroutine_yield" in document.function_names
+    assert "ns-yield" in document.html
+    assert "ns-gen" in document.html
 
 
 def test_let_else_supported() -> None:

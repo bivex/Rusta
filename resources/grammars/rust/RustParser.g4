@@ -470,6 +470,7 @@ expression
     | KW_CONTINUE LIFETIME_OR_LABEL? expression?                     # ContinueExpression            // 8.2.13
     | KW_BREAK LIFETIME_OR_LABEL? expression?                        # BreakExpression               // 8.2.13
     | KW_RETURN expression?                                          # ReturnExpression              // 8.2.17
+    | KW_YIELD expression?                                           # YieldExpression               // coroutines
     | LPAREN innerAttribute* expression RPAREN                       # GroupedExpression             // 8.2.5
     | LSQUAREBRACKET innerAttribute* arrayElements? RSQUAREBRACKET   # ArrayExpression               // 8.2.6
     | LPAREN innerAttribute* tupleElements? RPAREN                   # TupleExpression               // 8.2.7
@@ -507,6 +508,8 @@ expressionWithBlock
     | blockExpression
     | asyncBlockExpression
     | unsafeBlockExpression
+    | genBlockExpression
+    | asyncGenBlockExpression
     | loopExpression
     | ifExpression
     | ifLetExpression
@@ -549,6 +552,14 @@ asyncBlockExpression
 
 unsafeBlockExpression
     : KW_UNSAFE blockExpression
+    ;
+
+genBlockExpression
+    : KW_GEN blockExpression
+    ;
+
+asyncGenBlockExpression
+    : KW_ASYNC KW_GEN blockExpression
     ;
 
 // 8.2.6
@@ -1069,6 +1080,7 @@ identifier
     : NON_KEYWORD_IDENTIFIER
     | RAW_IDENTIFIER
     | KW_MACRORULES
+    | KW_GEN
     ;
 
 keyword

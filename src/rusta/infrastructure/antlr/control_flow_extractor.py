@@ -24,6 +24,8 @@ from rusta.domain.control_flow import (
     TryPropagateFlowStep,
     UnsafeFlowStep,
     WhileFlowStep,
+    YieldFlowStep,
+    GenBlockFlowStep,
 )
 from rusta.domain.model import SourceUnit
 from rusta.domain.ports import RustControlFlowExtractor
@@ -321,6 +323,13 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                     return [ClosureFlowStep(signature=sig, body_steps=tuple(self._extract_expression(expr_ctx)))]
                 return [ClosureFlowStep(signature=sig, body_steps=())]
 
+            # yield (YieldExpressionContext) — coroutine/generator
+            if ctx_type == "YieldExpressionContext":
+                expr_getter = getattr(expression_ctx, "expression", None)
+                expr_ctx = expr_getter() if callable(expr_getter) else None
+                value = ctx.compact(expr_ctx, limit=80) if expr_ctx else ""
+                return [YieldFlowStep(value=value)]
+
             # return (ReturnExpressionContext)
             if ctx_type == "ReturnExpressionContext":
                 return [ActionFlowStep(label=ctx.compact(expression_ctx, limit=140))]
@@ -344,6 +353,16 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 if unsafe_block.blockExpression() is not None:
                     return [UnsafeFlowStep(body_steps=self._extract_block(unsafe_block.blockExpression()))]
                 return [ActionFlowStep(ctx.compact(expression_with_block_ctx.unsafeBlockExpression(), limit=140))]
+            if expression_with_block_ctx.genBlockExpression() is not None:
+                gen_block = expression_with_block_ctx.genBlockExpression()
+                if gen_block.blockExpression() is not None:
+                    return [GenBlockFlowStep(body_steps=self._extract_block(gen_block.blockExpression()))]
+                return [ActionFlowStep(ctx.compact(expression_with_block_ctx.genBlockExpression(), limit=140))]
+            if expression_with_block_ctx.asyncGenBlockExpression() is not None:
+                async_gen = expression_with_block_ctx.asyncGenBlockExpression()
+                if async_gen.blockExpression() is not None:
+                    return [GenBlockFlowStep(body_steps=self._extract_block(async_gen.blockExpression()), is_async=True)]
+                return [ActionFlowStep(ctx.compact(expression_with_block_ctx.asyncGenBlockExpression(), limit=140))]
             if expression_with_block_ctx.loopExpression() is not None:
                 return [self._extract_loop(expression_with_block_ctx.loopExpression())]
             if expression_with_block_ctx.ifExpression() is not None:

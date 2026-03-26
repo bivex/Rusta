@@ -88,8 +88,9 @@ KW_YIELD    : 'yield';
 // reserved 2018+
 KW_TRY: 'try';
 
-// weak
+// weak / soft keywords
 KW_UNION          : 'union';
+KW_GEN            : 'gen';
 KW_STATICLIFETIME : '\'static';
 
 KW_MACRORULES        : 'macro_rules';

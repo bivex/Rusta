@@ -136,6 +136,19 @@ class MacroCallFlowStep(ControlFlowStep):
 
 
 @dataclass(frozen=True, slots=True)
+class YieldFlowStep(ControlFlowStep):
+    """Represents a yield expression in a generator/coroutine body."""
+    value: str
+
+
+@dataclass(frozen=True, slots=True)
+class GenBlockFlowStep(ControlFlowStep):
+    """Represents a gen {} or async gen {} block (Rust 1.85+)."""
+    body_steps: tuple[ControlFlowStep, ...]
+    is_async: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class ElseIfChainFlowStep(ControlFlowStep):
     """Represents an if-else-if chain for better visualization."""
     conditions: tuple[tuple[str, tuple[ControlFlowStep, ...]], ...]
