@@ -35,6 +35,12 @@ class WhileFlowStep(ControlFlowStep):
 
 
 @dataclass(frozen=True, slots=True)
+class LoopFlowStep(ControlFlowStep):
+    label: str
+    body_steps: tuple[ControlFlowStep, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ForInFlowStep(ControlFlowStep):
     header: str
     body_steps: tuple[ControlFlowStep, ...]
@@ -93,4 +99,3 @@ class FunctionControlFlow:
 class ControlFlowDiagram:
     source_location: str
     functions: tuple[FunctionControlFlow, ...]
-

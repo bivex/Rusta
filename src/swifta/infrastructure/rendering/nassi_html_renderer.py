@@ -15,6 +15,7 @@ from swifta.domain.control_flow import (
     ForInFlowStep,
     GuardFlowStep,
     IfFlowStep,
+    LoopFlowStep,
     RepeatWhileFlowStep,
     SwitchCaseFlow,
     SwitchFlowStep,
@@ -612,6 +613,8 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
             )
         if isinstance(step, WhileFlowStep):
             return self._render_single_body(f"While {step.condition}", step.body_steps, depth=depth)
+        if isinstance(step, LoopFlowStep):
+            return self._render_single_body(step.label.title(), step.body_steps, depth=depth)
         if isinstance(step, ForInFlowStep):
             return self._render_single_body(f"For {step.header}", step.body_steps, depth=depth)
         if isinstance(step, RepeatWhileFlowStep):
@@ -756,7 +759,7 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
 
         return (
             f'<div class="ns-node ns-switch ns-if-depth-{d}">'
-            f'<div class="ns-switch-header">{badge} switch {escape(step.expression)}</div>'
+            f'<div class="ns-switch-header">{badge} match {escape(step.expression)}</div>'
             f'<div class="ns-switch-cases">{"".join(cases_html)}</div>'
             "</div>"
         )
