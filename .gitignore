@@ -8,3 +8,4 @@ build/
 dist/
 src/rusta/infrastructure/antlr/generated/swift5/
 src/rusta/infrastructure/antlr/generated/rust/
+.claude/settings.local.json
