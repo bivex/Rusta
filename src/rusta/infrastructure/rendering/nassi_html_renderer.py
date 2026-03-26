@@ -705,7 +705,7 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
         if const_params:
             chips = "".join(
                 f'<span class="fn-attr" style="color:var(--amber);background:var(--amber-dim);border-color:rgba(241,202,122,0.25)">'
-                f'const {escape(p)}</span>'
+                f'{escape(p)}</span>'
                 for p in const_params
             )
             const_params_html = f'<div class="fn-attrs" style="margin-top:4px">{chips}</div>'

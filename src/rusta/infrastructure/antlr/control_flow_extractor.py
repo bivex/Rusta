@@ -242,6 +242,20 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 return self._extract_expression_statement(statement_ctx.expressionStatement())
             if statement_ctx.macroInvocationSemi() is not None:
                 return [MacroCallFlowStep(label=ctx.compact(statement_ctx.macroInvocationSemi(), limit=140))]
+            # println!/assert!/vec! etc. parsed as statement → item → macroItem → macroInvocationSemi
+            item_getter = getattr(statement_ctx, "item", None)
+            if callable(item_getter):
+                item_ctx = item_getter()
+                if item_ctx is not None:
+                    macro_item_getter = getattr(item_ctx, "macroItem", None)
+                    if callable(macro_item_getter):
+                        macro_item = macro_item_getter()
+                        if macro_item is not None:
+                            macro_invoc_getter = getattr(macro_item, "macroInvocationSemi", None)
+                            if callable(macro_invoc_getter):
+                                macro_invoc = macro_invoc_getter()
+                                if macro_invoc is not None:
+                                    return [MacroCallFlowStep(label=ctx.compact(macro_invoc, limit=140))]
             return []
 
         def _extract_expression_statement(self, expression_statement_ctx) -> list[ControlFlowStep]:
@@ -309,18 +323,19 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 else:
                     sig = "|...|"
 
-                block = getattr(expression_ctx, "blockExpression", None)
-                # blockExpression might be a getter method
+                # Body is on inner_closure (ClosureExpressionContext), not on the outer wrapper
+                body_source = inner_closure if inner_closure is not None else expression_ctx
+                block = getattr(body_source, "blockExpression", None)
                 if callable(block):
                     block = block()
                 if block is not None:
                     return [ClosureFlowStep(signature=sig, body_steps=self._extract_block(block))]
-                # Closures can also have a simple expression body
-                expr_ctx = getattr(expression_ctx, "expression", None)
-                if callable(expr_ctx):
-                    expr_ctx = expr_ctx()
-                if expr_ctx is not None:
-                    return [ClosureFlowStep(signature=sig, body_steps=tuple(self._extract_expression(expr_ctx)))]
+                # Closures can also have an expression body (including ExpressionWithBlock_)
+                expr_body = getattr(body_source, "expression", None)
+                if callable(expr_body):
+                    expr_body = expr_body()
+                if expr_body is not None:
+                    return [ClosureFlowStep(signature=sig, body_steps=tuple(self._extract_expression(expr_body)))]
                 return [ClosureFlowStep(signature=sig, body_steps=())]
 
             # yield (YieldExpressionContext) — coroutine/generator
