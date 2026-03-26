@@ -365,19 +365,60 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 arm_expressions = arms_ctx.matchArmExpression()
 
                 for arm_ctx, arm_expression_ctx in zip(arms[:-1], arm_expressions, strict=False):
+                    # Extract match arm guard if present
+                    guard_getter = getattr(arm_ctx, "matchArmGuard", None)
+                    guard_ctx = guard_getter() if callable(guard_getter) else guard_getter
+                    guard = None
+                    if guard_ctx is not None:
+                        expr_getter = getattr(guard_ctx, "expression", None)
+                        expr = expr_getter() if callable(expr_getter) else expr_getter
+                        guard = ctx.compact(expr, limit=80) if expr else None
+
+                    # Extract just the pattern (without guard)
+                    pattern_getter = getattr(arm_ctx, "pattern", None)
+                    pattern_ctx = pattern_getter() if callable(pattern_getter) else pattern_getter
+                    label = ctx.compact(pattern_ctx, limit=120) if pattern_ctx else "_"
+
+                    # Check for OR patterns in the label
+                    has_or = ' | ' in label or '| ' in label or ' |' in label
+
+                    # Check for range patterns
+                    is_range = '..=' in label or '..' in label
+
                     cases.append(
                         SwitchCaseFlow(
-                            label=ctx.compact(arm_ctx, limit=120),
+                            label=label,
                             steps=tuple(self._extract_match_arm_expression(arm_expression_ctx)),
+                            guard=guard,
+                            is_range=is_range or has_or,
                         )
                     )
 
                 if arms:
                     last_arm_ctx = arms[-1]
+                    # Extract guard for last arm too
+                    guard_getter = getattr(last_arm_ctx, "matchArmGuard", None)
+                    guard_ctx = guard_getter() if callable(guard_getter) else guard_getter
+                    guard = None
+                    if guard_ctx is not None:
+                        expr_getter = getattr(guard_ctx, "expression", None)
+                        expr = expr_getter() if callable(expr_getter) else expr_getter
+                        guard = ctx.compact(expr, limit=80) if expr else None
+
+                    # Extract just the pattern (without guard)
+                    pattern_getter = getattr(last_arm_ctx, "pattern", None)
+                    pattern_ctx = pattern_getter() if callable(pattern_getter) else pattern_getter
+                    label = ctx.compact(pattern_ctx, limit=120) if pattern_ctx else "_"
+
+                    is_range = '..=' in label or '..' in label
+                    has_or = ' | ' in label or '| ' in label or ' |' in label
+
                     cases.append(
                         SwitchCaseFlow(
-                            label=ctx.compact(last_arm_ctx, limit=120),
+                            label=label,
                             steps=tuple(self._extract_expression(arms_ctx.expression())),
+                            guard=guard,
+                            is_range=is_range or has_or,
                         )
                     )
 

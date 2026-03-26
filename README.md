@@ -44,6 +44,46 @@ The Rust Nassi-Shneiderman renderer currently builds diagrams for common functio
 
 For directory mode, the CLI writes one HTML file per Rust source file plus an `index.html` bundle page.
 
+### NSD Support Matrix
+
+| Rust Construct | NSD Type | Status | Notes |
+|----------------|-----------|--------|-------|
+| **Basics** |||
+| `let` statements | `ActionFlowStep` | ✅ | Full support |
+| Expression actions | `ActionFlowStep` | ✅ | Full support |
+| `return` | `ActionFlowStep` | ✅ | Full support |
+| **Conditionals** |||
+| `if` / `if let` | `IfFlowStep` | ✅ | Full support |
+| `else if` chains | Nested `IfFlowStep` | ✅ | Rendered as nested ifs |
+| **Loops** |||
+| `while` / `while let` | `WhileFlowStep` | ✅ | Full support |
+| `for` | `ForInFlowStep` | ✅ | Full support |
+| `loop` | `LoopFlowStep` | ✅ | With optional labels |
+| **Match** |||
+| `match` | `SwitchFlowStep` | ✅ | Full support |
+| Match arms | `SwitchCaseFlow` | ✅ | Full support |
+| **Match Guards** | Guard badge | ✅ | `x if x > 10` → orange badge |
+| **OR Patterns** | `SwitchCaseFlow` | ✅ | `A \| B` → detected |
+| **Range Patterns** | `SwitchCaseFlow` | ⚠️ | Partial (`..=` limited by grammar) |
+| **Error Handling** |||
+| `?` operator | `TryPropagateFlowStep` | ✅ | Error propagation |
+| **Async** |||
+| `.await` | `AwaitFlowStep` | ✅ | Async await points |
+| `async` blocks | Inline | ✅ | Expanded in body |
+| **Unsafe** |||
+| `unsafe` blocks | `UnsafeFlowStep` | ✅ | Red background |
+| **Other** |||
+| Closures | `ClosureFlowStep` | ✅ | Lambda expressions |
+| `break` with value | `BreakWithValueFlowStep` | ✅ | Loop exits |
+| `continue` | `ActionFlowStep` | ✅ | As action node |
+| **Future (P1)** |||
+| Labeled breaks/continues | - | 🔄 | Labels detected, not visualized |
+| Const blocks | - | ❌ | Not yet implemented |
+| Trait bounds | - | ❌ | Not yet implemented |
+| **Not Supported (Grammar Limits)** |||
+| `let`-else (Rust 1.65+) | - | ❌ | ANTLR grammar limitation |
+| Advanced macros | - | ❌ | Requires expansion |
+
 ### Demo Screenshots
 
 Basic control flow:

@@ -56,6 +56,8 @@ class RepeatWhileFlowStep(ControlFlowStep):
 class SwitchCaseFlow:
     label: str
     steps: tuple[ControlFlowStep, ...]
+    guard: str | None = None  # Match guard condition (if any)
+    is_range: bool = False  # Whether this is a range pattern
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +120,20 @@ class BreakWithValueFlowStep(ControlFlowStep):
     """Represents a break with a value expression."""
     label: str
     value: str
+
+
+@dataclass(frozen=True, slots=True)
+class LetElseFlowStep(ControlFlowStep):
+    """Represents a let-else statement (Rust 1.65+)."""
+    pattern: str
+    else_steps: tuple[ControlFlowStep, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ElseIfChainFlowStep(ControlFlowStep):
+    """Represents an if-else-if chain for better visualization."""
+    conditions: tuple[tuple[str, tuple[ControlFlowStep, ...]], ...]
+    # Each tuple is (condition, then_steps), with optional else_steps at the end
 
 
 @dataclass(frozen=True, slots=True)

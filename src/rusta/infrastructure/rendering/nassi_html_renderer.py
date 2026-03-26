@@ -500,6 +500,39 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
       .case:first-child {{ border-top: 0; }}
       .ns-catches {{ border-top: 1px solid var(--border); }}
 
+      /* ── Match guard badges ── */
+      .guard-badge {{
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 6px;
+        background: var(--orange-dim);
+        color: var(--orange);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 600;
+        border-radius: 4px;
+        border: 1px solid var(--orange);
+      }}
+      .range-indicator {{
+        display: inline-block;
+        margin-left: 6px;
+        color: var(--purple);
+        font-weight: 600;
+      }}
+      .case.has-guard {{
+        background: linear-gradient(90deg, rgba(255, 167, 38, 0.08), transparent 40px);
+      }}
+      .case.is-range {{
+        border-left: 2px solid var(--purple);
+      }}
+      /* Switch case variants */
+      .ns-switch-case-col.has-guard {{
+        background: linear-gradient(90deg, rgba(255, 167, 38, 0.08), transparent 40px);
+      }}
+      .ns-switch-case-col.is-range {{
+        border-left: 2px solid var(--purple);
+      }}
+
       .empty {{
         color: var(--muted);
         font-style: italic;
@@ -698,9 +731,22 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
         raise TypeError(f"unsupported step type: {type(step)!r}")
 
     def _render_case(self, case: SwitchCaseFlow) -> str:
+        # Add guard badge if present
+        guard_badge = ""
+        if case.guard:
+            guard_badge = f' <span class="guard-badge">if {escape(case.guard)}</span>'
+
+        # Add range indicator if this is a range pattern
+        range_indicator = ""
+        if case.is_range:
+            range_indicator = ' <span class="range-indicator">↔</span>'
+
         return (
-            '<div class="case">'
-            f"{self._render_case_title(case.label)}"
+            '<div class="case'
+            + (' has-guard' if case.guard else '')
+            + (' is-range' if case.is_range else '')
+            + '">'
+            f"{self._render_case_title(case.label + guard_badge + range_indicator)}"
             f"{self._render_sequence(case.steps, depth=2)}"
             "</div>"
         )
@@ -796,9 +842,30 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
         cases_html = []
         for case in step.cases:
             label = self._normalize_case_label(case.label.strip())
+
+            # Add guard badge if present
+            guard_badge = ""
+            if case.guard:
+                guard_badge = f' <span class="guard-badge">if {escape(case.guard)}</span>'
+
+            # Add range indicator if this is a range pattern
+            range_indicator = ""
+            if case.is_range:
+                range_indicator = ' <span class="range-indicator">↔</span>'
+
+            # Build the case label with optional guard and range indicator
+            full_label = f"{escape(label)}{guard_badge}{range_indicator}"
+
+            # Add special classes for styling
+            col_class = "ns-switch-case-col"
+            if case.guard:
+                col_class += " has-guard"
+            if case.is_range:
+                col_class += " is-range"
+
             cases_html.append(
-                f'<div class="ns-switch-case-col" aria-label="{escape(label)}">'
-                f'<div class="ns-switch-case-value">{escape(label)}</div>'
+                f'<div class="{col_class}" aria-label="{escape(label)}">'
+                f'<div class="ns-switch-case-value">{full_label}</div>'
                 f'<div class="ns-switch-case-body">{self._render_sequence(case.steps, depth=depth + 1)}</div>'
                 "</div>"
             )
