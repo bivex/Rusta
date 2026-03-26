@@ -141,7 +141,7 @@ def test_match_guards_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_match_guards" in document.function_names
 
     # Check that the HTML contains guard badges
@@ -156,7 +156,7 @@ def test_or_patterns_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_or_patterns" in document.function_names
 
     # Check that OR patterns are shown in the HTML
@@ -172,7 +172,7 @@ def test_error_propagation_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_error_propagation" in document.function_names
 
     # Check that ? operator is visualized
@@ -186,7 +186,7 @@ def test_async_await_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_async_await" in document.function_names
 
     # Check that .await is visualized
@@ -200,7 +200,7 @@ def test_unsafe_blocks_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_unsafe" in document.function_names
 
     # Check that unsafe blocks are visualized
@@ -214,7 +214,7 @@ def test_closures_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_closure" in document.function_names
 
     # Check that closures are visualized
@@ -228,7 +228,7 @@ def test_break_with_value_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_break_with_value" in document.function_names
 
     # Check that break with value is visualized
@@ -379,7 +379,7 @@ def test_if_let_chain_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 21
+    assert document.function_count == 22
     assert "test_if_let_chain_simple" in document.function_names
     assert "test_if_let_chain_double" in document.function_names
 
@@ -401,3 +401,32 @@ def test_labeled_block_detected() -> None:
     assert "test_labeled_block" in document.function_names
     assert "ns-labeled-block" in document.html
     assert "block" in document.html
+
+
+def test_let_match_binding_decomposed() -> None:
+    """Test that `let x = match expr { }` decomposes the match into a SwitchFlowStep.
+
+    Regression: tonlib-rs pattern `let anycast = match maybe_anycast { Some(...) => ..., None => { return ...; } }`
+    must render as:
+      ActionFlowStep("let anycast = ...")   ← compact binding label, no full match text
+      SwitchFlowStep(match maybe_anycast)   ← decomposed arms
+        Some(anycast) → anycast
+        None → <body steps>
+    """
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_let_match_binding" in document.function_names
+    html = document.html
+
+    # The match MUST be rendered as a switch node (decomposed)
+    assert "ns-node ns-switch" in html
+
+    # Compact binding label: "let value = ..." — no full match text in the action node
+    assert "let value = ..." in html
+
+    # Both arms must be present
+    assert "Some(x)" in html
+    assert "ns-switch-case" in html

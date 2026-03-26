@@ -227,15 +227,19 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                         else_steps=self._extract_block(else_block),
                     )]
 
-                # Regular let — check for special RHS expressions (? or await)
+                # Regular let — check for special RHS expressions (? or await or block types)
                 expr_getter = getattr(let_ctx, "expression", None)
                 expr_ctx = expr_getter() if callable(expr_getter) else expr_getter
                 if expr_ctx is not None:
                     steps = self._extract_expression(expr_ctx)
                     if len(steps) == 1 and not isinstance(steps[0], ActionFlowStep):
-                        return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140)), steps[0]]
+                        # For block-like steps (match/if/loop), use compact binding label
+                        # instead of full let text which would duplicate the expanded node
+                        label = self._let_binding_label(let_ctx)
+                        return [ActionFlowStep(label=label), steps[0]]
                     elif len(steps) > 1 and any(not isinstance(s, ActionFlowStep) for s in steps):
-                        return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140))] + steps
+                        label = self._let_binding_label(let_ctx)
+                        return [ActionFlowStep(label=label)] + steps
                 return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140))]
 
             if statement_ctx.expressionStatement() is not None:
@@ -527,6 +531,18 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
 
             # Fallback - shouldn't happen but handle gracefully
             return ActionFlowStep(label=ctx.compact(loop_ctx, limit=140))
+
+        def _let_binding_label(self, let_ctx) -> str:
+            """Return a short binding label for `let pat = <complex_rhs>`.
+
+            Instead of showing the full truncated RHS (which duplicates the
+            expanded NSD node below), show just `let <pat> = ...`.
+            """
+            pat_getter = getattr(let_ctx, "patternNoTopAlt", None)
+            pat = pat_getter() if callable(pat_getter) else None
+            if pat is not None:
+                return f"let {ctx.compact(pat, limit=60)} = ..."
+            return ctx.compact(let_ctx, limit=140)
 
         def _pattern_has_range(self, pattern_ctx) -> bool:
             """Return True if any alternative in the pattern is a range pattern."""

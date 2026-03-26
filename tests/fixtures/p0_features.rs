@@ -162,3 +162,14 @@ pub fn test_labeled_block() -> i32 {
 }
 
 fn compute() -> i32 { 42 }
+
+// let x = match expr { ... } — match inside let binding should be decomposed
+pub fn test_let_match_binding(maybe: Option<i32>) -> i32 {
+    let value = match maybe {
+        Some(x) => x,
+        None => {
+            return 0;
+        }
+    };
+    value * 2
+}
