@@ -8,6 +8,9 @@ import re
 
 from rusta.domain.control_flow import (
     ActionFlowStep,
+    AwaitFlowStep,
+    BreakWithValueFlowStep,
+    ClosureFlowStep,
     ControlFlowDiagram,
     ControlFlowStep,
     DeferFlowStep,
@@ -15,10 +18,13 @@ from rusta.domain.control_flow import (
     ForInFlowStep,
     GuardFlowStep,
     IfFlowStep,
+    LabeledBlockFlowStep,
     LoopFlowStep,
     RepeatWhileFlowStep,
     SwitchCaseFlow,
     SwitchFlowStep,
+    TryPropagateFlowStep,
+    UnsafeFlowStep,
     WhileFlowStep,
 )
 from rusta.domain.ports import NassiDiagramRenderer
@@ -300,12 +306,21 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
       .ns-switch  {{ background: var(--switch-fill); }}
       .ns-do-catch {{ background: var(--do-fill); }}
       .ns-defer   {{ background: var(--defer-fill); }}
+      .ns-unsafe  {{ background: var(--red-dim); }}
+      .ns-labeled-block {{ background: var(--surface-3); }}
+      .ns-closure {{ background: #1a1a2e; }}
+      .ns-try-propagate {{ background: var(--no-fill); border-left: 3px solid var(--red); }}
+      .ns-await {{ background: var(--yes-fill); border-left: 3px solid var(--green); }}
+      .ns-break-value {{ background: var(--orange-dim); border-left: 3px solid var(--orange); }}
 
       .ns-guard   > .ns-header {{ background: var(--orange-dim); color: var(--orange); }}
       .ns-switch  > .ns-header,
       .case-title              {{ background: var(--teal-dim);   color: var(--teal);   }}
       .ns-do-catch > .ns-header {{ background: var(--purple-dim); color: var(--purple); }}
       .ns-defer   > .ns-header {{ background: var(--amber-dim);  color: var(--amber);  }}
+      .ns-unsafe  > .ns-header {{ background: var(--red-dim);    color: var(--red);     }}
+      .ns-labeled-block > .ns-header {{ background: var(--surface-4); color: var(--blue); }}
+      .ns-closure > .ns-header {{ background: #2d2d44; color: var(--purple); }}
 
       /* Left accent stripes */
       .ns-node.ns-loop,
@@ -314,6 +329,9 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
       .ns-node.ns-switch  {{ border-left: 3px solid var(--teal); }}
       .ns-node.ns-do-catch {{ border-left: 3px solid var(--purple); }}
       .ns-node.ns-defer   {{ border-left: 3px solid var(--amber); }}
+      .ns-node.ns-unsafe  {{ border-left: 3px solid var(--red); }}
+      .ns-node.ns-labeled-block {{ border-left: 3px solid var(--blue); }}
+      .ns-node.ns-closure {{ border-left: 3px solid var(--purple); }}
 
       /* Depth tinting */
       .ns-depth-1 > .ns-node {{ background-color: rgba(255,255,255,0.012); }}
@@ -646,6 +664,37 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
             )
         if isinstance(step, DeferFlowStep):
             return self._render_single_body("Defer", step.body_steps, depth=depth, css_class="ns-defer")
+        if isinstance(step, TryPropagateFlowStep):
+            return (
+                '<div class="ns-node ns-try-propagate">'
+                f'<div class="ns-label" aria-label="Try propagate">'
+                f'<code class="action-text">{escape(step.label)}</code>'
+                '</div><div class="ns-note">Early return on Err</div>'
+                "</div>"
+            )
+        if isinstance(step, AwaitFlowStep):
+            return (
+                '<div class="ns-node ns-await">'
+                f'<div class="ns-label" aria-label="Await">'
+                f'<code class="action-text">{escape(step.label)}</code>'
+                '</div><div class="ns-note">Yield to executor</div>'
+                "</div>"
+            )
+        if isinstance(step, UnsafeFlowStep):
+            return self._render_single_body("Unsafe", step.body_steps, depth=depth, css_class="ns-unsafe")
+        if isinstance(step, LabeledBlockFlowStep):
+            return self._render_single_body(f"Block '{step.label}'", step.body_steps, depth=depth, css_class="ns-labeled-block")
+        if isinstance(step, ClosureFlowStep):
+            return self._render_single_body(f"|{step.signature}|", step.body_steps, depth=depth, css_class="ns-closure")
+        if isinstance(step, BreakWithValueFlowStep):
+            label_note = f" to '{step.label}'" if step.label else ""
+            return (
+                '<div class="ns-node ns-break-value">'
+                f'<div class="ns-label" aria-label="Break with value">'
+                f'<code class="action-text">break {step.value}</code>'
+                f'</div><div class="ns-note">Exit block{label_note}</div>'
+                "</div>"
+            )
         raise TypeError(f"unsupported step type: {type(step)!r}")
 
     def _render_case(self, case: SwitchCaseFlow) -> str:

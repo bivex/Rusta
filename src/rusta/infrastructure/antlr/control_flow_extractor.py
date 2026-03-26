@@ -7,14 +7,20 @@ from dataclasses import dataclass
 
 from rusta.domain.control_flow import (
     ActionFlowStep,
+    AwaitFlowStep,
+    BreakWithValueFlowStep,
+    ClosureFlowStep,
     ControlFlowDiagram,
     ControlFlowStep,
     ForInFlowStep,
     FunctionControlFlow,
     IfFlowStep,
+    LabeledBlockFlowStep,
     LoopFlowStep,
     SwitchCaseFlow,
     SwitchFlowStep,
+    TryPropagateFlowStep,
+    UnsafeFlowStep,
     WhileFlowStep,
 )
 from rusta.domain.model import SourceUnit
@@ -146,7 +152,21 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
 
         def _extract_statement(self, statement_ctx) -> list[ControlFlowStep]:
             if statement_ctx.letStatement() is not None:
-                return [ActionFlowStep(ctx.compact(statement_ctx.letStatement(), limit=140))]
+                let_ctx = statement_ctx.letStatement()
+                # Check if the let statement contains special expressions
+                expr_getter = getattr(let_ctx, "expression", None)
+                expr_ctx = expr_getter() if callable(expr_getter) else expr_getter
+
+                if expr_ctx is not None:
+                    steps = self._extract_expression(expr_ctx)
+                    # If we found special types (? or await), return them
+                    if len(steps) == 1 and not isinstance(steps[0], ActionFlowStep):
+                        # Wrap in a let action for context
+                        return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140)), steps[0]]
+                    elif len(steps) > 1 and any(not isinstance(s, ActionFlowStep) for s in steps):
+                        # Multiple special steps found
+                        return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140))] + steps
+                return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140))]
             if statement_ctx.expressionStatement() is not None:
                 return self._extract_expression_statement(statement_ctx.expressionStatement())
             if statement_ctx.macroInvocationSemi() is not None:
@@ -166,7 +186,50 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 with_block_ctx = nested_with_block()
                 if with_block_ctx is not None:
                     return self._extract_expression_with_block(with_block_ctx)
-            return [ActionFlowStep(ctx.compact(expression_ctx, limit=140))]
+
+            # Check for specific expression types using context type names
+            ctx_type = type(expression_ctx).__name__
+
+            # ? operator (ErrorPropagationExpressionContext)
+            if ctx_type == "ErrorPropagationExpressionContext":
+                return [TryPropagateFlowStep(label=ctx.compact(expression_ctx, limit=140))]
+
+            # .await (AwaitExpressionContext)
+            if ctx_type == "AwaitExpressionContext":
+                return [AwaitFlowStep(label=ctx.compact(expression_ctx, limit=140))]
+
+            # break with optional label and value (BreakExpressionContext)
+            if ctx_type == "BreakExpressionContext":
+                label_token = getattr(expression_ctx, "LIFETIME_OR_LABEL", None)
+                # Check if it's a terminal node (has getText) not a getter method
+                if label_token and not callable(label_token):
+                    label = label_token.getText().removesuffix(":")
+                else:
+                    label = ""
+                value_ctx = getattr(expression_ctx, "expression", None)
+                value = ctx.compact(value_ctx, limit=60) if value_ctx and not callable(value_ctx) else ""
+                return [BreakWithValueFlowStep(label=label, value=value)]
+
+            # continue (ContinueExpressionContext) - render as action
+            if ctx_type == "ContinueExpressionContext":
+                return [ActionFlowStep(label=ctx.compact(expression_ctx, limit=140))]
+
+            # closure (ClosureExpression_Context)
+            if ctx_type == "ClosureExpression_Context":
+                sig = ctx.compact(expression_ctx, limit=80)
+                block = getattr(expression_ctx, "blockExpression", None)
+                # blockExpression might be a getter method
+                if callable(block):
+                    block = block()
+                if block is not None:
+                    return [ClosureFlowStep(signature=sig, body_steps=self._extract_block(block))]
+                return [ClosureFlowStep(signature=sig, body_steps=())]
+
+            # return (ReturnExpressionContext)
+            if ctx_type == "ReturnExpressionContext":
+                return [ActionFlowStep(label=ctx.compact(expression_ctx, limit=140))]
+
+            return [ActionFlowStep(label=ctx.compact(expression_ctx, limit=140))]
 
         def _extract_expression_with_block(self, expression_with_block_ctx) -> list[ControlFlowStep]:
             nested = expression_with_block_ctx.expressionWithBlock()
@@ -175,8 +238,15 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
             if expression_with_block_ctx.blockExpression() is not None:
                 return list(self._extract_block(expression_with_block_ctx.blockExpression()))
             if expression_with_block_ctx.asyncBlockExpression() is not None:
+                async_block = expression_with_block_ctx.asyncBlockExpression()
+                if async_block.blockExpression() is not None:
+                    # For async blocks, we show as a special node since .await points happen inside
+                    return list(self._extract_block(async_block.blockExpression()))
                 return [ActionFlowStep(ctx.compact(expression_with_block_ctx.asyncBlockExpression(), limit=140))]
             if expression_with_block_ctx.unsafeBlockExpression() is not None:
+                unsafe_block = expression_with_block_ctx.unsafeBlockExpression()
+                if unsafe_block.blockExpression() is not None:
+                    return [UnsafeFlowStep(body_steps=self._extract_block(unsafe_block.blockExpression()))]
                 return [ActionFlowStep(ctx.compact(expression_with_block_ctx.unsafeBlockExpression(), limit=140))]
             if expression_with_block_ctx.loopExpression() is not None:
                 return [self._extract_loop(expression_with_block_ctx.loopExpression())]
@@ -238,31 +308,54 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 )
                 return LoopFlowStep(label=label, body_steps=self._extract_block(block_ctx))
 
-            if loop_ctx.predicateLoopExpression() is not None:
-                predicate_ctx = loop_ctx.predicateLoopExpression()
+            predicate_getter = loop_ctx.predicateLoopExpression
+            predicate_ctx = predicate_getter() if callable(predicate_getter) else predicate_getter
+            if predicate_ctx is not None:
+                expr_getter = getattr(predicate_ctx, "expression", None)
+                expr = expr_getter() if callable(expr_getter) else expr_getter
+                block_getter = getattr(predicate_ctx, "blockExpression", None)
+                block = block_getter() if callable(block_getter) else block_getter
                 return WhileFlowStep(
-                    condition=ctx.compact(predicate_ctx.expression(), limit=120),
-                    body_steps=self._extract_block(predicate_ctx.blockExpression()),
+                    condition=ctx.compact(expr, limit=120) if expr else "",
+                    body_steps=self._extract_block(block) if block else (),
                 )
 
-            if loop_ctx.predicatePatternLoopExpression() is not None:
-                predicate_pattern_ctx = loop_ctx.predicatePatternLoopExpression()
+            pred_pattern_getter = loop_ctx.predicatePatternLoopExpression
+            pred_pattern_ctx = pred_pattern_getter() if callable(pred_pattern_getter) else pred_pattern_getter
+            if pred_pattern_ctx is not None:
+                pattern_getter = getattr(pred_pattern_ctx, "pattern", None)
+                pattern = pattern_getter() if callable(pattern_getter) else pattern_getter
+                expr_getter = getattr(pred_pattern_ctx, "expression", None)
+                expr = expr_getter() if callable(expr_getter) else expr_getter
+                block_getter = getattr(pred_pattern_ctx, "blockExpression", None)
+                block = block_getter() if callable(block_getter) else block_getter
                 return WhileFlowStep(
                     condition=(
-                        f"let {ctx.compact(predicate_pattern_ctx.pattern(), limit=60)} = "
-                        f"{ctx.compact(predicate_pattern_ctx.expression(), limit=60)}"
-                    ),
-                    body_steps=self._extract_block(predicate_pattern_ctx.blockExpression()),
+                        f"let {ctx.compact(pattern, limit=60)} = "
+                        f"{ctx.compact(expr, limit=60)}"
+                    ) if pattern and expr else "",
+                    body_steps=self._extract_block(block) if block else (),
                 )
 
-            iterator_ctx = loop_ctx.iteratorLoopExpression()
-            return ForInFlowStep(
-                header=(
-                    f"{ctx.compact(iterator_ctx.pattern(), limit=60)} in "
-                    f"{ctx.compact(iterator_ctx.expression(), limit=60)}"
-                ),
-                body_steps=self._extract_block(iterator_ctx.blockExpression()),
-            )
+            iterator_getter = loop_ctx.iteratorLoopExpression
+            iterator_ctx = iterator_getter() if callable(iterator_getter) else iterator_getter
+            if iterator_ctx is not None:
+                pattern_getter = getattr(iterator_ctx, "pattern", None)
+                pattern = pattern_getter() if callable(pattern_getter) else pattern_getter
+                expr_getter = getattr(iterator_ctx, "expression", None)
+                expr = expr_getter() if callable(expr_getter) else expr_getter
+                block_getter = getattr(iterator_ctx, "blockExpression", None)
+                block = block_getter() if callable(block_getter) else block_getter
+                return ForInFlowStep(
+                    header=(
+                        f"{ctx.compact(pattern, limit=60)} in "
+                        f"{ctx.compact(expr, limit=60)}"
+                    ) if pattern and expr else "",
+                    body_steps=self._extract_block(block) if block else (),
+                )
+
+            # Fallback - shouldn't happen but handle gracefully
+            return ActionFlowStep(label=ctx.compact(loop_ctx, limit=140))
 
         def _extract_match(self, match_ctx) -> SwitchFlowStep:
             cases: list[SwitchCaseFlow] = []

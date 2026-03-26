@@ -82,6 +82,45 @@ class DeferFlowStep(ControlFlowStep):
 
 
 @dataclass(frozen=True, slots=True)
+class TryPropagateFlowStep(ControlFlowStep):
+    """Represents the ? operator for error propagation."""
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
+class AwaitFlowStep(ControlFlowStep):
+    """Represents an .await point in async code."""
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
+class UnsafeFlowStep(ControlFlowStep):
+    """Represents an unsafe block."""
+    body_steps: tuple[ControlFlowStep, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class LabeledBlockFlowStep(ControlFlowStep):
+    """Represents a labeled block ('label: { ... })."""
+    label: str
+    body_steps: tuple[ControlFlowStep, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ClosureFlowStep(ControlFlowStep):
+    """Represents a closure/lambda expression."""
+    signature: str
+    body_steps: tuple[ControlFlowStep, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BreakWithValueFlowStep(ControlFlowStep):
+    """Represents a break with a value expression."""
+    label: str
+    value: str
+
+
+@dataclass(frozen=True, slots=True)
 class FunctionControlFlow:
     name: str
     signature: str
