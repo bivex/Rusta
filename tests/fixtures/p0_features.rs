@@ -18,11 +18,20 @@ pub fn test_or_patterns(result: Result<i32, &str>) -> i32 {
     }
 }
 
-// Range patterns - limited support due to ANTLR grammar
-// Note: Full range patterns with ..= may not parse correctly
+// Range patterns - full support via parse-tree detection
 pub fn test_range_patterns_limited(value: i32) -> &'static str {
     match value {
-        0 => "zero",
+        1..=10 => "low",
+        11..=100 => "mid",
+        101.. => "high",
+        _ => "other",
+    }
+}
+
+// Range + OR combined in one arm
+pub fn test_range_or_pattern(value: i32) -> &'static str {
+    match value {
+        1..=5 | 8..=10 => "selected",
         _ => "other",
     }
 }

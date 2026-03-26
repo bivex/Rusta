@@ -73,7 +73,7 @@ For directory mode, the CLI writes one HTML file per Rust source file plus an `i
 |----------------|-----------|--------|-------|
 | Match Guards (`x if x > 5`) | Guard badge | ✅ | Orange badge on arm |
 | Or-Patterns (`A \| B`) | `SwitchCaseFlow` | ✅ | Detected and merged |
-| Range Patterns (`1..=10`) | `SwitchCaseFlow` | ⚠️ | Partial — `..=` limited by ANTLR grammar |
+| Range Patterns (`1..=10`, `101..`) | `SwitchCaseFlow` | ✅ | Full support — parse-tree detection, works with OR combinations |
 | `if let` | `IfFlowStep` | ✅ | Full support |
 | `else if` chain | Nested `IfFlowStep` | ✅ | Rendered as nested ifs |
 | `let`-else (Rust 1.65+) | `LetElseFlowStep` | ✅ | Grammar extended with `KW_ELSE blockExpression` |

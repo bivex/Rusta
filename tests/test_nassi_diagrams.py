@@ -141,7 +141,7 @@ def test_match_guards_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
+    assert document.function_count == 16
     assert "test_match_guards" in document.function_names
 
     # Check that the HTML contains guard badges
@@ -156,7 +156,7 @@ def test_or_patterns_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
+    assert document.function_count == 16
     assert "test_or_patterns" in document.function_names
 
     # Check that OR patterns are shown in the HTML
@@ -172,7 +172,7 @@ def test_error_propagation_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
+    assert document.function_count == 16
     assert "test_error_propagation" in document.function_names
 
     # Check that ? operator is visualized
@@ -186,7 +186,7 @@ def test_async_await_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
+    assert document.function_count == 16
     assert "test_async_await" in document.function_names
 
     # Check that .await is visualized
@@ -200,7 +200,7 @@ def test_unsafe_blocks_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
+    assert document.function_count == 16
     assert "test_unsafe" in document.function_names
 
     # Check that unsafe blocks are visualized
@@ -214,7 +214,7 @@ def test_closures_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
+    assert document.function_count == 16
     assert "test_closure" in document.function_names
 
     # Check that closures are visualized
@@ -228,25 +228,31 @@ def test_break_with_value_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
+    assert document.function_count == 16
     assert "test_break_with_value" in document.function_names
 
     # Check that break with value is visualized
     assert "ns-break-value" in document.html
 
 
-def test_range_patterns_limited_support() -> None:
-    """Test that range patterns have limited support due to ANTLR grammar."""
+def test_range_patterns_fully_supported() -> None:
+    """Test that range patterns (..=, ..) are detected via parse tree, not text heuristics."""
     service = _build_service()
     document = service.build_file_diagram(
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 15
     assert "test_range_patterns_limited" in document.function_names
+    assert "test_range_or_pattern" in document.function_names
 
-    # This function should parse successfully (simple match without ..=)
-    assert document.function_count == 15
+    # range-indicator ↔ should appear for ..= and .. arms
+    assert "range-indicator" in document.html
+    # both inclusive and half-open ranges should be marked
+    assert "1..=10" in document.html or "1..=" in document.html
+    assert "101.." in document.html
+
+    # range+OR combined: 1..=5 | 8..=10 must also be marked as range
+    assert "is-range" in document.html
 
 
 def test_async_fn_badge_rendered() -> None:
