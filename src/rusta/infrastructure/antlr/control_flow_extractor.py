@@ -16,7 +16,9 @@ from rusta.domain.control_flow import (
     FunctionControlFlow,
     IfFlowStep,
     LabeledBlockFlowStep,
+    LetElseFlowStep,
     LoopFlowStep,
+    MacroCallFlowStep,
     SwitchCaseFlow,
     SwitchFlowStep,
     TryPropagateFlowStep,
@@ -125,12 +127,58 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
             end_token = ctx.token_stream.tokens[signature_end]
             signature = ctx.compact_text(ctx.text_between(function_ctx.start, end_token), limit=180)
 
+            qualifiers_getter = getattr(function_ctx, "functionQualifiers", None)
+            qualifiers = qualifiers_getter() if callable(qualifiers_getter) else None
+            is_async = qualifiers is not None and qualifiers.KW_ASYNC() is not None
+            is_unsafe = qualifiers is not None and qualifiers.KW_UNSAFE() is not None
+            is_const = qualifiers is not None and qualifiers.KW_CONST() is not None
+
+            where_clause_getter = getattr(function_ctx, "whereClause", None)
+            where_ctx = where_clause_getter() if callable(where_clause_getter) else None
+            where_clause = ctx.compact(where_ctx, limit=240) if where_ctx is not None else None
+
+            # Generic const params: fn foo<const N: usize>
+            const_params: tuple[str, ...] = ()
+            try:
+                gp_getter = getattr(function_ctx, "genericParams", None)
+                gp_ctx = gp_getter() if callable(gp_getter) else None
+                if gp_ctx is not None:
+                    gp_getter2 = getattr(gp_ctx, "genericParam", None)
+                    gp_list = gp_getter2() if callable(gp_getter2) else []
+                    collected = []
+                    for gp in (gp_list or []):
+                        cp_getter = getattr(gp, "constParam", None)
+                        cp = cp_getter() if callable(cp_getter) else None
+                        if cp is not None:
+                            collected.append(ctx.compact(cp, limit=80))
+                    const_params = tuple(collected)
+            except Exception:
+                pass
+
+            # Outer attributes are on the grandparent ItemContext (outerAttribute* visItem)
+            attributes: tuple[str, ...] = ()
+            try:
+                item_ctx = function_ctx.parentCtx.parentCtx
+                outer_attr_getter = getattr(item_ctx, "outerAttribute", None)
+                if callable(outer_attr_getter):
+                    attrs = outer_attr_getter()
+                    if attrs:
+                        attributes = tuple(ctx.compact(a, limit=120) for a in attrs)
+            except Exception:
+                pass
+
             self.functions.append(
                 FunctionControlFlow(
                     name=function_ctx.identifier().getText(),
                     signature=signature,
                     container=".".join(self._containers) or None,
                     steps=self._extract_block(block_ctx) if block_ctx is not None else (),
+                    is_async=is_async,
+                    is_unsafe=is_unsafe,
+                    is_const=is_const,
+                    where_clause=where_clause,
+                    attributes=attributes,
+                    const_params=const_params,
                 )
             )
             return None
@@ -153,24 +201,45 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
         def _extract_statement(self, statement_ctx) -> list[ControlFlowStep]:
             if statement_ctx.letStatement() is not None:
                 let_ctx = statement_ctx.letStatement()
-                # Check if the let statement contains special expressions
+
+                # let-else: let <pattern> = <expr> else { <block> }
+                else_block_getter = getattr(let_ctx, "blockExpression", None)
+                else_block = else_block_getter() if callable(else_block_getter) else None
+                kw_else_getter = getattr(let_ctx, "KW_ELSE", None)
+                has_else = kw_else_getter is not None and (
+                    kw_else_getter() if callable(kw_else_getter) else kw_else_getter
+                ) is not None
+                if has_else and else_block is not None:
+                    pattern_getter = getattr(let_ctx, "patternNoTopAlt", None)
+                    pattern_ctx = pattern_getter() if callable(pattern_getter) else None
+                    expr_getter = getattr(let_ctx, "expression", None)
+                    expr_ctx = expr_getter() if callable(expr_getter) else None
+                    pattern_text = (
+                        f"let {ctx.compact(pattern_ctx, limit=60)} = "
+                        f"{ctx.compact(expr_ctx, limit=60)}"
+                        if pattern_ctx and expr_ctx
+                        else ctx.compact(let_ctx, limit=120)
+                    )
+                    return [LetElseFlowStep(
+                        pattern=pattern_text,
+                        else_steps=self._extract_block(else_block),
+                    )]
+
+                # Regular let — check for special RHS expressions (? or await)
                 expr_getter = getattr(let_ctx, "expression", None)
                 expr_ctx = expr_getter() if callable(expr_getter) else expr_getter
-
                 if expr_ctx is not None:
                     steps = self._extract_expression(expr_ctx)
-                    # If we found special types (? or await), return them
                     if len(steps) == 1 and not isinstance(steps[0], ActionFlowStep):
-                        # Wrap in a let action for context
                         return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140)), steps[0]]
                     elif len(steps) > 1 and any(not isinstance(s, ActionFlowStep) for s in steps):
-                        # Multiple special steps found
                         return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140))] + steps
                 return [ActionFlowStep(label=ctx.compact(let_ctx, limit=140))]
+
             if statement_ctx.expressionStatement() is not None:
                 return self._extract_expression_statement(statement_ctx.expressionStatement())
             if statement_ctx.macroInvocationSemi() is not None:
-                return [ActionFlowStep(ctx.compact(statement_ctx.macroInvocationSemi(), limit=140))]
+                return [MacroCallFlowStep(label=ctx.compact(statement_ctx.macroInvocationSemi(), limit=140))]
             return []
 
         def _extract_expression_statement(self, expression_statement_ctx) -> list[ControlFlowStep]:
@@ -207,22 +276,49 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 else:
                     label = ""
                 value_ctx = getattr(expression_ctx, "expression", None)
-                value = ctx.compact(value_ctx, limit=60) if value_ctx and not callable(value_ctx) else ""
+                # Call the getter if it's callable
+                if value_ctx is not None:
+                    if callable(value_ctx):
+                        value_ctx = value_ctx()
+                    value = ctx.compact(value_ctx, limit=60) if value_ctx else ""
+                else:
+                    value = ""
                 return [BreakWithValueFlowStep(label=label, value=value)]
 
-            # continue (ContinueExpressionContext) - render as action
+            # continue (ContinueExpressionContext) - render as action (with optional label)
             if ctx_type == "ContinueExpressionContext":
+                label_token = getattr(expression_ctx, "LIFETIME_OR_LABEL", None)
+                if label_token is not None and not callable(label_token):
+                    return [ActionFlowStep(label=f"continue {label_token.getText()}")]
                 return [ActionFlowStep(label=ctx.compact(expression_ctx, limit=140))]
 
             # closure (ClosureExpression_Context)
             if ctx_type == "ClosureExpression_Context":
-                sig = ctx.compact(expression_ctx, limit=80)
+                # The ANTLR grammar has a nested structure for closures:
+                # ClosureExpression_Context -> closureExpression() -> ClosureExpressionContext -> closureParameters()
+                inner_closure = getattr(expression_ctx, "closureExpression", None)
+                if callable(inner_closure):
+                    inner_closure = inner_closure()
+                if inner_closure is not None:
+                    params_ctx = getattr(inner_closure, "closureParameters", None)
+                    if callable(params_ctx):
+                        params_ctx = params_ctx()
+                    sig = ctx.compact(params_ctx, limit=80) if params_ctx else "|...|"
+                else:
+                    sig = "|...|"
+
                 block = getattr(expression_ctx, "blockExpression", None)
                 # blockExpression might be a getter method
                 if callable(block):
                     block = block()
                 if block is not None:
                     return [ClosureFlowStep(signature=sig, body_steps=self._extract_block(block))]
+                # Closures can also have a simple expression body
+                expr_ctx = getattr(expression_ctx, "expression", None)
+                if callable(expr_ctx):
+                    expr_ctx = expr_ctx()
+                if expr_ctx is not None:
+                    return [ClosureFlowStep(signature=sig, body_steps=tuple(self._extract_expression(expr_ctx)))]
                 return [ClosureFlowStep(signature=sig, body_steps=())]
 
             # return (ReturnExpressionContext)
@@ -379,18 +475,15 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                     pattern_ctx = pattern_getter() if callable(pattern_getter) else pattern_getter
                     label = ctx.compact(pattern_ctx, limit=120) if pattern_ctx else "_"
 
-                    # Check for OR patterns in the label
-                    has_or = ' | ' in label or '| ' in label or ' |' in label
-
-                    # Check for range patterns
-                    is_range = '..=' in label or '..' in label
+                    # Check for range patterns (only ..= or .. without |)
+                    is_range = ('..=' in label or '..' in label) and '|' not in label
 
                     cases.append(
                         SwitchCaseFlow(
                             label=label,
                             steps=tuple(self._extract_match_arm_expression(arm_expression_ctx)),
                             guard=guard,
-                            is_range=is_range or has_or,
+                            is_range=is_range,
                         )
                     )
 
@@ -410,15 +503,15 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                     pattern_ctx = pattern_getter() if callable(pattern_getter) else pattern_getter
                     label = ctx.compact(pattern_ctx, limit=120) if pattern_ctx else "_"
 
-                    is_range = '..=' in label or '..' in label
-                    has_or = ' | ' in label or '| ' in label or ' |' in label
+                    # Check for range patterns (only ..= or .. without |)
+                    is_range = ('..=' in label or '..' in label) and '|' not in label
 
                     cases.append(
                         SwitchCaseFlow(
                             label=label,
                             steps=tuple(self._extract_expression(arms_ctx.expression())),
                             guard=guard,
-                            is_range=is_range or has_or,
+                            is_range=is_range,
                         )
                     )
 

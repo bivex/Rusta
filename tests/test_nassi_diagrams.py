@@ -59,7 +59,9 @@ def test_nassi_service_builds_directory_bundle() -> None:
         BuildNassiDirectoryCommand(root_path=str(ROOT / "tests" / "fixtures"))
     )
 
-    assert bundle.document_count == 3
+    # Should include .rs files only (control_flow.rs, valid.rs, p0_features.rs, p0_let_else_limitation.rs)
+    # Note: invalid.rs is excluded due to parsing errors
+    assert bundle.document_count == 5
     assert bundle.root_path == str((ROOT / "tests" / "fixtures").resolve())
     assert any(document.source_location.endswith("control_flow.rs") for document in bundle.documents)
     assert any(document.function_count == 2 for document in bundle.documents)
@@ -123,6 +125,230 @@ def test_nassi_cli_writes_directory_bundle(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     payload = json.loads(result.stdout)
-    assert payload["document_count"] == 3
+    # Should process .rs files (control_flow.rs, valid.rs, p0_features.rs, p0_let_else_limitation.rs)
+    # Note: invalid.rs is excluded due to parsing errors
+    assert payload["document_count"] == 5
     assert (output_dir / "index.html").exists()
     assert any(item["relative_output_path"].endswith("control_flow.nassi.html") for item in payload["documents"])
+
+
+# P0 Feature Tests
+
+def test_match_guards_are_detected() -> None:
+    """Test that match guards (x if condition) are properly detected and visualized."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_match_guards" in document.function_names
+
+    # Check that the HTML contains guard badges
+    assert "guard-badge" in document.html
+    assert "if x &gt; 10" in document.html or "if x > 10" in document.html
+
+
+def test_or_patterns_are_detected() -> None:
+    """Test that OR patterns (A | B) are properly detected in match arms."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_or_patterns" in document.function_names
+
+    # Check that OR patterns are shown in the HTML
+    html = document.html
+    assert "Ok(x)" in html
+    assert "Err(&quot;special&quot;)" in html or 'Err("special")' in html
+
+
+def test_error_propagation_detected() -> None:
+    """Test that ? operator is detected as TryPropagateFlowStep."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_error_propagation" in document.function_names
+
+    # Check that ? operator is visualized
+    assert "ns-try-propagate" in document.html
+
+
+def test_async_await_detected() -> None:
+    """Test that .await is detected as AwaitFlowStep."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_async_await" in document.function_names
+
+    # Check that .await is visualized
+    assert "ns-await" in document.html
+
+
+def test_unsafe_blocks_detected() -> None:
+    """Test that unsafe blocks are detected as UnsafeFlowStep."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_unsafe" in document.function_names
+
+    # Check that unsafe blocks are visualized
+    assert "ns-unsafe" in document.html
+
+
+def test_closures_detected() -> None:
+    """Test that closures are detected as ClosureFlowStep."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_closure" in document.function_names
+
+    # Check that closures are visualized
+    assert "ns-closure" in document.html
+
+
+def test_break_with_value_detected() -> None:
+    """Test that break with value is detected as BreakWithValueFlowStep."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_break_with_value" in document.function_names
+
+    # Check that break with value is visualized
+    assert "ns-break-value" in document.html
+
+
+def test_range_patterns_limited_support() -> None:
+    """Test that range patterns have limited support due to ANTLR grammar."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 15
+    assert "test_range_patterns_limited" in document.function_names
+
+    # This function should parse successfully (simple match without ..=)
+    assert document.function_count == 15
+
+
+def test_async_fn_badge_rendered() -> None:
+    """Test that async fn shows an async badge in the HTML header."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_async_await" in document.function_names
+    assert 'fn-badge-async' in document.html
+
+
+def test_unsafe_fn_badge_rendered() -> None:
+    """Test that unsafe fn shows an unsafe badge in the HTML header."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_unsafe_fn" in document.function_names
+    assert 'fn-badge-unsafe' in document.html
+
+
+def test_labeled_continue_detected() -> None:
+    """Test that labeled continue extracts the label into the action text."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_labeled_continue" in document.function_names
+    assert "continue 'outer" in document.html or "continue &#x27;outer" in document.html or "&#39;outer" in document.html
+
+
+def test_const_fn_badge_rendered() -> None:
+    """Test that const fn shows a const badge in the HTML header."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_const_fn" in document.function_names
+    assert "fn-badge-const" in document.html
+
+
+def test_where_clause_rendered() -> None:
+    """Test that where clauses are extracted and rendered in the function header."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_where_clause" in document.function_names
+    assert "fn-where" in document.html
+    assert "Clone" in document.html
+
+
+def test_outer_attributes_rendered() -> None:
+    """Test that outer attributes (#[...]) are collected and rendered as chips."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_with_attribute" in document.function_names
+    assert "fn-attr" in document.html
+    assert "must_use" in document.html
+
+
+def test_let_else_supported() -> None:
+    """Test that let-else (Rust 1.65+) is now supported after grammar extension."""
+    fixture_path = ROOT / "tests" / "fixtures" / "p0_let_else_limitation.rs"
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(fixture_path))
+    )
+
+    assert "test_let_else" in document.function_names
+    assert "test_if_let_alternative" in document.function_names
+    assert "test_match_alternative" in document.function_names
+    assert "ns-let-else" in document.html
+
+
+def test_macro_calls_rendered() -> None:
+    """Test that macro invocations are rendered as distinct MacroCallFlowStep nodes."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_macros" in document.function_names
+    assert "ns-macro" in document.html
+
+
+def test_const_param_rendered() -> None:
+    """Test that generic const params are extracted and shown in the function header."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_const_param" in document.function_names
+    # const param chip should appear in header
+    assert "const N" in document.html or "const N:" in document.html

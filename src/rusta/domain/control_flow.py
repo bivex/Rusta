@@ -130,6 +130,12 @@ class LetElseFlowStep(ControlFlowStep):
 
 
 @dataclass(frozen=True, slots=True)
+class MacroCallFlowStep(ControlFlowStep):
+    """Represents a macro invocation (e.g. println!, vec!, assert!)."""
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
 class ElseIfChainFlowStep(ControlFlowStep):
     """Represents an if-else-if chain for better visualization."""
     conditions: tuple[tuple[str, tuple[ControlFlowStep, ...]], ...]
@@ -142,6 +148,12 @@ class FunctionControlFlow:
     signature: str
     container: str | None
     steps: tuple[ControlFlowStep, ...]
+    is_async: bool = False
+    is_unsafe: bool = False
+    is_const: bool = False
+    where_clause: str | None = None
+    attributes: tuple[str, ...] = ()
+    const_params: tuple[str, ...] = ()
 
     @property
     def qualified_name(self) -> str:

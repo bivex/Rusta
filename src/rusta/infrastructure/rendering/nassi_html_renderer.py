@@ -19,7 +19,9 @@ from rusta.domain.control_flow import (
     GuardFlowStep,
     IfFlowStep,
     LabeledBlockFlowStep,
+    LetElseFlowStep,
     LoopFlowStep,
+    MacroCallFlowStep,
     RepeatWhileFlowStep,
     SwitchCaseFlow,
     SwitchFlowStep,
@@ -229,6 +231,64 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
         overflow-wrap: anywhere;
         word-break: break-word;
       }}
+      .fn-badge {{
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        padding: 2px 7px;
+        border-radius: 4px;
+        margin-left: 8px;
+        vertical-align: middle;
+        letter-spacing: 0.03em;
+      }}
+      .fn-badge-async {{
+        background: var(--teal-dim);
+        color: var(--teal);
+        border: 1px solid rgba(86, 212, 221, 0.35);
+      }}
+      .fn-badge-unsafe {{
+        background: var(--red-dim);
+        color: var(--red);
+        border: 1px solid rgba(255, 147, 169, 0.35);
+      }}
+      .fn-badge-const {{
+        background: var(--amber-dim);
+        color: var(--amber);
+        border: 1px solid rgba(241, 202, 122, 0.35);
+      }}
+      .fn-where {{
+        margin-top: 5px;
+        font-family: var(--mono);
+        font-size: 11px;
+        line-height: 1.6;
+        color: var(--muted);
+        padding: 4px 8px;
+        background: rgba(255,255,255,0.03);
+        border-left: 2px solid var(--border-strong);
+        border-radius: 0 4px 4px 0;
+        overflow-wrap: anywhere;
+      }}
+      .fn-where .where-keyword {{
+        color: var(--purple);
+        font-weight: 500;
+        margin-right: 4px;
+      }}
+      .fn-attrs {{
+        margin-bottom: 5px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }}
+      .fn-attr {{
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--green);
+        background: var(--green-dim);
+        border: 1px solid rgba(166, 218, 149, 0.25);
+        border-radius: 4px;
+        padding: 1px 6px;
+      }}
       .function-body {{
         padding: 12px;
         background:
@@ -312,6 +372,12 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
       .ns-try-propagate {{ background: var(--no-fill); border-left: 3px solid var(--red); }}
       .ns-await {{ background: var(--yes-fill); border-left: 3px solid var(--green); }}
       .ns-break-value {{ background: var(--orange-dim); border-left: 3px solid var(--orange); }}
+      .ns-let-else {{ background: var(--purple-dim); }}
+      .ns-let-else > .ns-header {{ background: var(--purple-dim); color: var(--purple); }}
+      .ns-node.ns-let-else {{ border-left: 3px solid var(--purple); }}
+      .ns-macro {{ background: var(--surface-3); border-left: 3px solid var(--amber); }}
+      .ns-macro .ns-label {{ background: var(--surface-3); }}
+      .ns-macro .action-text {{ color: var(--amber); }}
 
       .ns-guard   > .ns-header {{ background: var(--orange-dim); color: var(--orange); }}
       .ns-switch  > .ns-header,
@@ -600,11 +666,48 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
 """
 
     def _render_function(self, function) -> str:
+        badges = ""
+        if getattr(function, "is_async", False):
+            badges += '<span class="fn-badge fn-badge-async">async</span>'
+        if getattr(function, "is_unsafe", False):
+            badges += '<span class="fn-badge fn-badge-unsafe">unsafe</span>'
+        if getattr(function, "is_const", False):
+            badges += '<span class="fn-badge fn-badge-const">const</span>'
+
+        attrs_html = ""
+        attributes = getattr(function, "attributes", ())
+        if attributes:
+            chips = "".join(f'<span class="fn-attr">{escape(a)}</span>' for a in attributes)
+            attrs_html = f'<div class="fn-attrs">{chips}</div>'
+
+        where_html = ""
+        where_clause = getattr(function, "where_clause", None)
+        if where_clause:
+            where_html = (
+                f'<div class="fn-where">'
+                f'<span class="where-keyword">where</span>'
+                f'{escape(where_clause.removeprefix("where").strip())}'
+                f'</div>'
+            )
+
+        const_params_html = ""
+        const_params = getattr(function, "const_params", ())
+        if const_params:
+            chips = "".join(
+                f'<span class="fn-attr" style="color:var(--amber);background:var(--amber-dim);border-color:rgba(241,202,122,0.25)">'
+                f'const {escape(p)}</span>'
+                for p in const_params
+            )
+            const_params_html = f'<div class="fn-attrs" style="margin-top:4px">{chips}</div>'
+
         return (
             '<section class="function-panel">'
             '<div class="function-head">'
-            f'<h2 class="function-title">{escape(function.qualified_name)}</h2>'
+            f'{attrs_html}'
+            f'<h2 class="function-title">{escape(function.qualified_name)}{badges}</h2>'
             f'<div class="function-signature">{escape(function.signature)}</div>'
+            f'{where_html}'
+            f'{const_params_html}'
             "</div>"
             '<div class="function-body">'
             f"{self._render_sequence(function.steps, depth=0)}"
@@ -726,6 +829,21 @@ class HtmlNassiDiagramRenderer(NassiDiagramRenderer):
                 f'<div class="ns-label" aria-label="Break with value">'
                 f'<code class="action-text">break {step.value}</code>'
                 f'</div><div class="ns-note">Exit block{label_note}</div>'
+                "</div>"
+            )
+        if isinstance(step, LetElseFlowStep):
+            return self._render_single_body(
+                f"let … = … else  ({escape(step.pattern)})",
+                step.else_steps,
+                depth=depth,
+                css_class="ns-let-else",
+            )
+        if isinstance(step, MacroCallFlowStep):
+            return (
+                '<div class="ns-node ns-macro">'
+                f'<div class="ns-label" aria-label="Macro call">'
+                f'<code class="action-text">{escape(step.label)}</code>'
+                "</div>"
                 "</div>"
             )
         raise TypeError(f"unsupported step type: {type(step)!r}")

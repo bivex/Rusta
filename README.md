@@ -46,43 +46,58 @@ For directory mode, the CLI writes one HTML file per Rust source file plus an `i
 
 ### NSD Support Matrix
 
+#### Basics
+
 | Rust Construct | NSD Type | Status | Notes |
 |----------------|-----------|--------|-------|
-| **Basics** |||
 | `let` statements | `ActionFlowStep` | ✅ | Full support |
 | Expression actions | `ActionFlowStep` | ✅ | Full support |
 | `return` | `ActionFlowStep` | ✅ | Full support |
-| **Conditionals** |||
-| `if` / `if let` | `IfFlowStep` | ✅ | Full support |
-| `else if` chains | Nested `IfFlowStep` | ✅ | Rendered as nested ifs |
-| **Loops** |||
+| `if` / `else if` chains | `IfFlowStep` (nested) | ✅ | Full support |
 | `while` / `while let` | `WhileFlowStep` | ✅ | Full support |
 | `for` | `ForInFlowStep` | ✅ | Full support |
 | `loop` | `LoopFlowStep` | ✅ | With optional labels |
-| **Match** |||
 | `match` | `SwitchFlowStep` | ✅ | Full support |
 | Match arms | `SwitchCaseFlow` | ✅ | Full support |
-| **Match Guards** | Guard badge | ✅ | `x if x > 10` → orange badge |
-| **OR Patterns** | `SwitchCaseFlow` | ✅ | `A \| B` → detected |
-| **Range Patterns** | `SwitchCaseFlow` | ⚠️ | Partial (`..=` limited by grammar) |
-| **Error Handling** |||
 | `?` operator | `TryPropagateFlowStep` | ✅ | Error propagation |
-| **Async** |||
 | `.await` | `AwaitFlowStep` | ✅ | Async await points |
 | `async` blocks | Inline | ✅ | Expanded in body |
-| **Unsafe** |||
 | `unsafe` blocks | `UnsafeFlowStep` | ✅ | Red background |
-| **Other** |||
 | Closures | `ClosureFlowStep` | ✅ | Lambda expressions |
 | `break` with value | `BreakWithValueFlowStep` | ✅ | Loop exits |
 | `continue` | `ActionFlowStep` | ✅ | As action node |
-| **Future (P1)** |||
-| Labeled breaks/continues | - | 🔄 | Labels detected, not visualized |
-| Const blocks | - | ❌ | Not yet implemented |
-| Trait bounds | - | ❌ | Not yet implemented |
-| **Not Supported (Grammar Limits)** |||
-| `let`-else (Rust 1.65+) | - | ❌ | ANTLR grammar limitation |
-| Advanced macros | - | ❌ | Requires expansion |
+
+#### P0 🔥 Critical — very common Rust patterns
+
+| Rust Construct | NSD Type | Status | Notes |
+|----------------|-----------|--------|-------|
+| Match Guards (`x if x > 5`) | Guard badge | ✅ | Orange badge on arm |
+| Or-Patterns (`A \| B`) | `SwitchCaseFlow` | ✅ | Detected and merged |
+| Range Patterns (`1..=10`) | `SwitchCaseFlow` | ⚠️ | Partial — `..=` limited by ANTLR grammar |
+| `if let` | `IfFlowStep` | ✅ | Full support |
+| `else if` chain | Nested `IfFlowStep` | ✅ | Rendered as nested ifs |
+| `let`-else (Rust 1.65+) | `LetElseFlowStep` | ✅ | Grammar extended with `KW_ELSE blockExpression` |
+
+#### P1 🟡 Medium — useful patterns
+
+| Rust Construct | NSD Type | Status | Notes |
+|----------------|-----------|--------|-------|
+| Labeled `break` | `BreakWithValueFlowStep` | ✅ | Label shown in exit note |
+| Labeled `continue` | `ActionFlowStep` | ✅ | Label extracted into action text |
+| `while let` | `WhileFlowStep` | ✅ | Full support |
+| `async fn` (whole function) | Badge in header | ✅ | Teal `async` badge on function title |
+| `unsafe fn` (whole function) | Badge in header | ✅ | Red `unsafe` badge on function title |
+| `const fn` | Badge in header | ✅ | Amber `const` badge on function title |
+| Trait bounds (`where T: Display`) | `fn-where` section | ✅ | Rendered below signature in header |
+
+#### P2 🟢 Low priority — edge cases
+
+| Rust Construct | NSD Type | Status | Notes |
+|----------------|-----------|--------|-------|
+| Outer attributes (`#[must_use]` etc.) | `fn-attr` chips | ✅ | Shown as green chips above title |
+| Macro invocations (`println!`, etc.) | `MacroCallFlowStep` | ✅ | Amber-highlighted node, distinct from actions |
+| Generic const params (`const N: usize`) | Amber chips in header | ✅ | Extracted from `genericParams`, shown below signature |
+| Coroutine internals (generator state) | - | ❌ | Requires compiler support |
 
 ### Demo Screenshots
 
