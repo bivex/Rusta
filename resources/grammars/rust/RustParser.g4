@@ -514,6 +514,12 @@ expressionWithBlock
     | ifExpression
     | ifLetExpression
     | matchExpression
+    | labeledBlockExpression
+    ;
+
+// Rust labeled block: 'label: { break 'label value; }
+labeledBlockExpression
+    : loopLabel blockExpression
     ;
 
 // 8.2.1
@@ -690,9 +696,19 @@ ifExpression
     ;
 
 ifLetExpression
-    : KW_IF KW_LET pattern EQ expression blockExpression (
+    : KW_IF letChain blockExpression (
         KW_ELSE (blockExpression | ifExpression | ifLetExpression)
     )?
+    ;
+
+// Rust 1.64+ let-chain: if let A = x && let B = y && cond { }
+letChain
+    : letChainElement (ANDAND letChainElement)*
+    ;
+
+letChainElement
+    : KW_LET pattern EQ expression
+    | expression
     ;
 
 // 8.2.16

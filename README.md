@@ -77,6 +77,8 @@ For directory mode, the CLI writes one HTML file per Rust source file plus an `i
 | `if let` | `IfFlowStep` | ✅ | Full support |
 | `else if` chain | Nested `IfFlowStep` | ✅ | Rendered as nested ifs |
 | `let`-else (Rust 1.65+) | `LetElseFlowStep` | ✅ | Grammar extended with `KW_ELSE blockExpression` |
+| `if let` chains with `&&` (Rust 1.64+) | `IfFlowStep` | ✅ | Full chain rendered as `let A = x && let B = y && cond`; grammar extended with `letChain` rule |
+| Labeled blocks (`'label: { break 'label val; }`) | `LabeledBlockFlowStep` | ✅ | Blue-bordered block node; grammar extended with `labeledBlockExpression` |
 
 #### P1 🟡 Medium — useful patterns
 

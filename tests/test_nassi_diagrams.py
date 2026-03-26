@@ -141,7 +141,7 @@ def test_match_guards_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 17
+    assert document.function_count == 21
     assert "test_match_guards" in document.function_names
 
     # Check that the HTML contains guard badges
@@ -156,7 +156,7 @@ def test_or_patterns_are_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 17
+    assert document.function_count == 21
     assert "test_or_patterns" in document.function_names
 
     # Check that OR patterns are shown in the HTML
@@ -172,7 +172,7 @@ def test_error_propagation_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 17
+    assert document.function_count == 21
     assert "test_error_propagation" in document.function_names
 
     # Check that ? operator is visualized
@@ -186,7 +186,7 @@ def test_async_await_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 17
+    assert document.function_count == 21
     assert "test_async_await" in document.function_names
 
     # Check that .await is visualized
@@ -200,7 +200,7 @@ def test_unsafe_blocks_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 17
+    assert document.function_count == 21
     assert "test_unsafe" in document.function_names
 
     # Check that unsafe blocks are visualized
@@ -214,7 +214,7 @@ def test_closures_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 17
+    assert document.function_count == 21
     assert "test_closure" in document.function_names
 
     # Check that closures are visualized
@@ -228,7 +228,7 @@ def test_break_with_value_detected() -> None:
         BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
     )
 
-    assert document.function_count == 17
+    assert document.function_count == 21
     assert "test_break_with_value" in document.function_names
 
     # Check that break with value is visualized
@@ -370,3 +370,34 @@ def test_const_param_rendered() -> None:
     assert "test_const_param" in document.function_names
     # const param chip should appear in header
     assert "const N" in document.html or "const N:" in document.html
+
+
+def test_if_let_chain_detected() -> None:
+    """Test that if-let chains (Rust 1.64+) are rendered with && conditions."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert document.function_count == 21
+    assert "test_if_let_chain_simple" in document.function_names
+    assert "test_if_let_chain_double" in document.function_names
+
+    html = document.html
+    # Single let + bool condition chain
+    assert "Some(x)" in html
+    assert "&amp;&amp;" in html or "&&" in html
+    # Double let chain
+    assert "Some(y)" in html
+
+
+def test_labeled_block_detected() -> None:
+    """Test that labeled blocks ('label: { }) are detected as LabeledBlockFlowStep."""
+    service = _build_service()
+    document = service.build_file_diagram(
+        BuildNassiDiagramCommand(path=str(ROOT / "tests" / "fixtures" / "p0_features.rs"))
+    )
+
+    assert "test_labeled_block" in document.function_names
+    assert "ns-labeled-block" in document.html
+    assert "block" in document.html

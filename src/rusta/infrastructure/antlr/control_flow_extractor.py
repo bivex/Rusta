@@ -378,6 +378,17 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
                 if async_gen.blockExpression() is not None:
                     return [GenBlockFlowStep(body_steps=self._extract_block(async_gen.blockExpression()), is_async=True)]
                 return [ActionFlowStep(ctx.compact(expression_with_block_ctx.asyncGenBlockExpression(), limit=140))]
+            if expression_with_block_ctx.labeledBlockExpression() is not None:
+                lbe = expression_with_block_ctx.labeledBlockExpression()
+                label_getter = getattr(lbe, "loopLabel", None)
+                label_ctx = label_getter() if callable(label_getter) else None
+                label = (
+                    ctx.compact(label_ctx, limit=32).removesuffix(":")
+                    if label_ctx is not None else "'_"
+                )
+                block_getter = getattr(lbe, "blockExpression", None)
+                block = block_getter() if callable(block_getter) else None
+                return [LabeledBlockFlowStep(label=label, body_steps=self._extract_block(block) if block else ())]
             if expression_with_block_ctx.loopExpression() is not None:
                 return [self._extract_loop(expression_with_block_ctx.loopExpression())]
             if expression_with_block_ctx.ifExpression() is not None:
@@ -418,15 +429,45 @@ def _build_control_flow_visitor(visitor_base: type, ctx: _ExtractorContext) -> t
             elif if_let_ctx.ifLetExpression() is not None:
                 else_steps = (self._extract_if_let(if_let_ctx.ifLetExpression()),)
 
-            condition = (
-                f"let {ctx.compact(if_let_ctx.pattern(), limit=60)} = "
-                f"{ctx.compact(if_let_ctx.expression(), limit=60)}"
-            )
+            # Rust 1.64+ let-chains: if let A = x && let B = y && cond { }
+            chain_getter = getattr(if_let_ctx, "letChain", None)
+            chain_ctx = chain_getter() if callable(chain_getter) else None
+            if chain_ctx is not None:
+                condition = self._format_let_chain(chain_ctx)
+            else:
+                # Fallback for simple if-let (single pattern = expr)
+                condition = (
+                    f"let {ctx.compact(if_let_ctx.pattern(), limit=60)} = "
+                    f"{ctx.compact(if_let_ctx.expression(), limit=60)}"
+                )
             return IfFlowStep(
                 condition=condition,
                 then_steps=then_steps,
                 else_steps=else_steps,
             )
+
+        def _format_let_chain(self, chain_ctx) -> str:
+            """Format a letChain as a readable condition string."""
+            elements_getter = getattr(chain_ctx, "letChainElement", None)
+            elements = elements_getter() if callable(elements_getter) else []
+            parts = []
+            for elem in (elements or []):
+                kw_let = getattr(elem, "KW_LET", None)
+                has_let = (kw_let() if callable(kw_let) else kw_let) is not None
+                if has_let:
+                    pat_getter = getattr(elem, "pattern", None)
+                    pat = pat_getter() if callable(pat_getter) else None
+                    expr_getter = getattr(elem, "expression", None)
+                    expr = expr_getter() if callable(expr_getter) else None
+                    parts.append(
+                        f"let {ctx.compact(pat, limit=50)} = {ctx.compact(expr, limit=50)}"
+                        if pat and expr else ctx.compact(elem, limit=80)
+                    )
+                else:
+                    expr_getter = getattr(elem, "expression", None)
+                    expr = expr_getter() if callable(expr_getter) else None
+                    parts.append(ctx.compact(expr or elem, limit=80))
+            return " && ".join(parts) if parts else ctx.compact(chain_ctx, limit=120)
 
         def _extract_loop(self, loop_ctx) -> ControlFlowStep:
             if loop_ctx.infiniteLoopExpression() is not None:

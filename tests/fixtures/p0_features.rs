@@ -130,3 +130,35 @@ pub fn test_coroutine_yield() -> impl Iterator<Item = i32> {
         yield 3;
     }
 }
+
+// if-let chain (Rust 1.64+) — single let + bool condition
+pub fn test_if_let_chain_simple(opt: Option<i32>) -> i32 {
+    if let Some(x) = opt && x > 5 {
+        x * 2
+    } else {
+        0
+    }
+}
+
+// if-let chain (Rust 1.64+) — two let bindings
+pub fn test_if_let_chain_double(a: Option<i32>, b: Option<i32>) -> i32 {
+    if let Some(x) = a && let Some(y) = b {
+        x + y
+    } else {
+        -1
+    }
+}
+
+// Labeled block ('label: { break 'label value; })
+pub fn test_labeled_block() -> i32 {
+    let result = 'block: {
+        let x = compute();
+        if x < 0 {
+            break 'block 0;
+        }
+        x * 2
+    };
+    result
+}
+
+fn compute() -> i32 { 42 }
